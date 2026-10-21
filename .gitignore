@@ -1,0 +1,29 @@
+# Arquivos de ambiente e credenciais sensíveis
+.env
+credentials.json
+
+# Logs gerados automaticamente
+envios.log
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Ambientes virtuais
+venv/
+env/
+.venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos temporários
+*.tmp
+*.temp

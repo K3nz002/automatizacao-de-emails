@@ -1,0 +1,7 @@
+# Dependências principais
+resend>=0.7.0                  # Cliente oficial da API Resend
+gspread>=6.0.0                 # Integração com Google Sheets
+google-auth>=2.28.0            # Autenticação OAuth2/Service Account do Google
+python-dotenv>=1.0.0           # Carregamento de variáveis de ambiente do .env
+mjml>=0.3.0                    # Compilador MJML para Python (requer Node.js instalado)
+requests>=2.31.0               # HTTP requests (dependência interna)

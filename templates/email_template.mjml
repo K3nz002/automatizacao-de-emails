@@ -1,0 +1,179 @@
+<mjml>
+  <mj-head>
+    <mj-title>Conheça o Politize</mj-title>
+    <mj-preview>Educação política acessível para todos — veja como o Politize pode transformar sua escola!</mj-preview>
+
+    <mj-attributes>
+      <!-- Paleta de cores principal -->
+      <mj-all font-family="Inter, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="1.6" color="#2d2d2d" />
+      <mj-button background-color="#FF6B35" border-radius="8px" font-size="16px" font-weight="bold" />
+    </mj-attributes>
+
+    <mj-style>
+      /* Importa a fonte Inter do Google Fonts */
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+      /* Link de descadastro discreto */
+      .unsubscribe-link a {
+        color: #999999 !important;
+        text-decoration: underline;
+      }
+    </mj-style>
+  </mj-head>
+
+  <mj-body background-color="#F4F4F5">
+
+    <!-- ===== PRÉ-CABEÇALHO / ESPAÇAMENTO TOPO ===== -->
+    <mj-section padding="20px 0 0">
+      <mj-column>
+        <mj-text align="center" font-size="12px" color="#888888">
+          Não está vendo este e-mail corretamente?
+          <a href="#" style="color:#FF6B35;">Clique aqui</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- ===== HEADER COM LOGO ===== -->
+    <mj-section background-color="#1A1A2E" border-radius="16px 16px 0 0" padding="30px 40px">
+      <mj-column>
+        <mj-text align="center" font-size="28px" font-weight="700" color="#FFFFFF" letter-spacing="2px">
+          ⚖️ POLITIZE
+        </mj-text>
+        <mj-text align="center" font-size="13px" color="#A8B2C8" padding-top="4px">
+          Educação Política para Todos
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- ===== BANNER HERO ===== -->
+    <mj-section
+      background-color="#16213E"
+      padding="50px 40px"
+    >
+      <mj-column>
+        <mj-text align="center" font-size="13px" font-weight="600" color="#FF6B35" text-transform="uppercase" letter-spacing="3px">
+          Parceria Educacional
+        </mj-text>
+        <mj-text align="center" font-size="32px" font-weight="700" color="#FFFFFF" line-height="1.3" padding-top="12px">
+          Olá, <span style="color:#FF6B35;">{{nome}}</span>! 👋
+        </mj-text>
+        <mj-text align="center" font-size="18px" color="#C8D0E0" padding-top="8px">
+          Transforme a forma como sua escola enxerga a política
+        </mj-text>
+        <mj-button href="https://www.politize.com.br" padding-top="28px" padding-bottom="0" inner-padding="16px 36px">
+          Saiba Mais →
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <!-- ===== CORPO PRINCIPAL ===== -->
+    <mj-section background-color="#FFFFFF" padding="40px">
+      <mj-column>
+        <mj-text font-size="17px" color="#333333" line-height="1.7">
+          Sabemos que falar sobre política nas escolas pode ser um desafio —
+          por isso o <strong>Politize</strong> existe: para tornar esse assunto
+          acessível, imparcial e engajante para jovens de todo o Brasil.
+        </mj-text>
+
+        <mj-divider border-color="#F0F0F0" border-width="1px" padding="20px 0" />
+
+        <!-- Benefícios em destaque -->
+        <mj-text font-size="20px" font-weight="700" color="#1A1A2E" padding-bottom="4px">
+          O que oferecemos à sua escola:
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- ===== CARDS DE BENEFÍCIOS ===== -->
+    <mj-section background-color="#FFFFFF" padding="0 24px 20px">
+
+      <mj-column border="2px solid #F0F0F0" border-radius="12px" padding="20px" background-color="#FAFAFA">
+        <mj-text font-size="28px" align="center" padding-bottom="4px">📚</mj-text>
+        <mj-text font-size="16px" font-weight="700" color="#1A1A2E" align="center">
+          Conteúdo Gratuito
+        </mj-text>
+        <mj-text font-size="14px" color="#666666" align="center" line-height="1.5">
+          Mais de 500 artigos e vídeos sobre política, direito e cidadania — sem custo para a escola.
+        </mj-text>
+      </mj-column>
+
+      <mj-column border="2px solid #F0F0F0" border-radius="12px" padding="20px" background-color="#FAFAFA">
+        <mj-text font-size="28px" align="center" padding-bottom="4px">🎯</mj-text>
+        <mj-text font-size="16px" font-weight="700" color="#1A1A2E" align="center">
+          Conteúdo Imparcial
+        </mj-text>
+        <mj-text font-size="14px" color="#666666" align="center" line-height="1.5">
+          Abordagem apartidária, baseada em fatos e pensamento crítico para os alunos.
+        </mj-text>
+      </mj-column>
+
+    </mj-section>
+
+    <mj-section background-color="#FFFFFF" padding="0 24px 40px">
+
+      <mj-column border="2px solid #F0F0F0" border-radius="12px" padding="20px" background-color="#FAFAFA">
+        <mj-text font-size="28px" align="center" padding-bottom="4px">🤝</mj-text>
+        <mj-text font-size="16px" font-weight="700" color="#1A1A2E" align="center">
+          Parceria Educacional
+        </mj-text>
+        <mj-text font-size="14px" color="#666666" align="center" line-height="1.5">
+          Suporte pedagógico e materiais adaptados para o currículo escolar.
+        </mj-text>
+      </mj-column>
+
+      <mj-column border="2px solid #F0F0F0" border-radius="12px" padding="20px" background-color="#FAFAFA">
+        <mj-text font-size="28px" align="center" padding-bottom="4px">🚀</mj-text>
+        <mj-text font-size="16px" font-weight="700" color="#1A1A2E" align="center">
+          Impacto Real
+        </mj-text>
+        <mj-text font-size="14px" color="#666666" align="center" line-height="1.5">
+          Mais de 2 milhões de jovens impactados em todo o Brasil.
+        </mj-text>
+      </mj-column>
+
+    </mj-section>
+
+    <!-- ===== CTA PRINCIPAL ===== -->
+    <mj-section background-color="#FF6B35" border-radius="0" padding="40px">
+      <mj-column>
+        <mj-text align="center" font-size="22px" font-weight="700" color="#FFFFFF" line-height="1.4">
+          Leve o Politize para sua escola agora
+        </mj-text>
+        <mj-text align="center" font-size="15px" color="#FFE5D9" padding-top="8px">
+          Entre em contato e descubra como podemos firmar uma parceria.
+        </mj-text>
+        <mj-button
+          href="mailto:parceria@politize.com.br"
+          background-color="#FFFFFF"
+          color="#FF6B35"
+          border-radius="8px"
+          inner-padding="16px 36px"
+          font-size="16px"
+          font-weight="700"
+          padding-top="24px"
+        >
+          Entrar em Contato
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <!-- ===== FOOTER ===== -->
+    <mj-section background-color="#1A1A2E" border-radius="0 0 16px 16px" padding="30px 40px">
+      <mj-column>
+        <mj-text align="center" font-size="13px" color="#A8B2C8" line-height="1.6">
+          © 2026 Politize — Educação Política para Todos<br />
+          Você está recebendo este e-mail porque sua escola pode se beneficiar de nossa parceria.
+        </mj-text>
+        <mj-text align="center" font-size="12px" color="#666666" padding-top="12px" css-class="unsubscribe-link">
+          <a href="#" style="color:#666666;">Descadastrar</a> ·
+          <a href="https://www.politize.com.br/privacidade" style="color:#666666;">Política de Privacidade</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Espaçamento final -->
+    <mj-section padding="20px 0" />
+
+  </mj-body>
+</mjml>
