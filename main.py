@@ -32,6 +32,13 @@ from dotenv import load_dotenv
 from email_sender import compile_mjml, render_template, send_email
 from sheets_client import get_recipients, get_sent_emails, mark_as_sent
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 # ---------------------------------------------------------------------------
 # CONFIGURAÇÃO DE LOGGING
 # ---------------------------------------------------------------------------
