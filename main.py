@@ -126,11 +126,12 @@ def main():
             config["spreadsheet_id"],
             config["sheet_name"],
         )
-        # Conjunto de e-mails já enviados para verificação O(1)
+        # Conjunto de e-mails já enviados para verificação O(1) sem duplicar chamada de rede
         already_sent: set[str] = get_sent_emails(
             config["credentials_path"],
             config["spreadsheet_id"],
             config["sheet_name"],
+            recipients=recipients,
         )
     except (FileNotFoundError, ValueError, RuntimeError) as e:
         logger.error(f"Falha ao acessar o Google Sheets: {e}")

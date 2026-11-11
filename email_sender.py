@@ -107,10 +107,20 @@ def compile_mjml(template_path: str) -> str:
     try:
         html = _compile_mjml_via_nodejs(mjml_source)
         logger.info("Compilação MJML concluída via Node.js CLI.")
+        # Salva cópia compilada para cache
+        try:
+            path.with_suffix(".html").write_text(html, encoding="utf-8")
+        except Exception:
+            pass
         return html
-    except FileNotFoundError:
+    except Exception as e:
+        logger.warning(f"Falha na compilação externa do MJML: {e}")
+        cached_html = path.with_suffix(".html")
+        if cached_html.exists():
+            logger.info(f"Usando template HTML pré-compilado em cache: {cached_html}")
+            return cached_html.read_text(encoding="utf-8")
         raise RuntimeError(
-            "Não foi possível compilar o MJML. "
+            "Não foi possível compilar o MJML e nenhum HTML em cache foi encontrado. "
             "Instale o pacote Python com 'pip install mjml' "
             "ou o CLI do Node.js com 'npm install -g mjml'."
         )

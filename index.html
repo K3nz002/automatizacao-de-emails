@@ -3,10 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Politize — Envio de e-mails</title>
+<title>Politize — Automação de E-mails</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#FF6B35">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --ink: #16213E;
@@ -19,14 +22,19 @@
     --muted: #5A6682;
     --slate: #8B95AB;
     --orange: #FF6B35;
+    --orange-hover: #E8551F;
     --green: #17795E;
     --green-bg: #DDF1EA;
     --red: #B42342;
     --red-bg: #FBE3E8;
+    --yellow: #B87700;
+    --yellow-bg: #FFF4D9;
     --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
     --text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
     --cw: 30px;
     --ch: 21px;
+    --shadow-sm: 0 1px 3px rgba(15,24,48,0.08);
+    --shadow-md: 0 8px 24px rgba(15,24,48,0.12);
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -36,49 +44,101 @@
     color: var(--ink);
     font: 400 15px/1.5 var(--text);
     font-variant-numeric: tabular-nums;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
-  button, input, select { font: inherit; color: inherit; }
+  button, input, select, textarea { font: inherit; color: inherit; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .panel :focus-visible { outline-color: var(--orange); }
 
-  /* ---------- Barra superior ---------- */
+  /* ---------- Barra Superior (App Bar) ---------- */
   .top {
+    background: var(--sheet);
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: var(--shadow-sm);
+  }
+  .top-inner {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    max-width: 1240px; margin: 0 auto; padding: 18px 24px;
+    max-width: 1280px; margin: 0 auto; padding: 12px 24px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .brand svg { display: block; }
-  .brand-name { font: 700 20px/1 var(--display); letter-spacing: -0.01em; }
-  .brand-sec { color: var(--muted); padding-left: 12px; margin-left: 2px; border-left: 1px solid var(--line); }
-  .top-meta { color: var(--muted); font-size: 14px; }
-
-  .demo {
-    background: #FFE9DF; color: #6B2208; font-size: 14px;
-    padding: 9px 24px; text-align: center;
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(255,107,53,0.35);
   }
-  .demo code { font: 500 13px/1 ui-monospace, Menlo, Consolas, monospace; background: rgba(255,255,255,.6); padding: 2px 5px; border-radius: 4px; }
+  .brand-title { display: flex; flex-direction: column; }
+  .brand-name { font: 700 19px/1.1 var(--display); letter-spacing: -0.01em; color: var(--ink); }
+  .brand-sec { color: var(--muted); font-size: 12px; font-weight: 500; }
+  
+  .top-actions { display: flex; align-items: center; gap: 12px; }
+  
+  /* Status Pill */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: var(--paper); border: 1px solid var(--line); color: var(--muted);
+    transition: all .2s;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--slate);
+  }
+  .status-pill.online { background: var(--green-bg); border-color: rgba(23,121,94,.25); color: var(--green); }
+  .status-pill.online .status-dot { background: var(--green); box-shadow: 0 0 0 3px rgba(23,121,94,.2); }
+  .status-pill.demo { background: var(--yellow-bg); border-color: rgba(184,119,0,.25); color: var(--yellow); }
+  .status-pill.demo .status-dot { background: var(--yellow); }
+  .status-pill.offline { background: var(--red-bg); border-color: rgba(180,35,66,.25); color: var(--red); }
+  .status-pill.offline .status-dot { background: var(--red); }
 
-  /* ---------- Layout ---------- */
+  .btn-diag {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .2s;
+  }
+  .btn-diag:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* Banner de Alerta / Demonstração */
+  .app-banner {
+    background: #FFF3EB; border-bottom: 1px solid #FFD3BD; color: #8A2E0B;
+    font-size: 13.5px; padding: 10px 24px; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .app-banner b { font-weight: 600; }
+  .app-banner code { font-family: ui-monospace, Menlo, Consolas, monospace; background: rgba(255,255,255,.7); padding: 2px 6px; border-radius: 4px; }
+
+  /* ---------- Layout Principal ---------- */
   .layout {
-    max-width: 1240px; margin: 0 auto; padding: 20px 24px 72px;
-    display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+    max-width: 1280px; margin: 0 auto; padding: 28px 24px 72px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 380px;
     grid-template-areas: "hero panel" "list panel";
-    column-gap: 44px; row-gap: 40px; align-items: start;
+    column-gap: 36px; row-gap: 32px; align-items: start;
+    flex: 1; width: 100%;
   }
   .hero { grid-area: hero; }
-  .panel { grid-area: panel; position: sticky; top: 20px; }
+  .panel { grid-area: panel; position: sticky; top: 76px; }
   .list { grid-area: list; }
 
-  /* ---------- Hero ---------- */
+  /* ---------- Hero & Mosaico ---------- */
   .hero h1 {
-    font: 700 clamp(30px, 4.4vw, 46px)/1.08 var(--display);
-    letter-spacing: -0.025em; margin: 0 0 10px; max-width: 22ch; text-wrap: balance;
+    font: 700 clamp(28px, 4vw, 42px)/1.1 var(--display);
+    letter-spacing: -0.025em; margin: 0 0 8px; max-width: 24ch; text-wrap: balance;
   }
-  .sub { color: var(--muted); font-size: 16px; margin: 0 0 28px; max-width: 60ch; }
+  .sub { color: var(--muted); font-size: 15.5px; margin: 0 0 24px; max-width: 65ch; }
 
-  .waffle { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 22px; }
+  .waffle-container {
+    background: var(--sheet); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm);
+  }
+  .waffle-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
+  }
+  .waffle { display: flex; flex-wrap: wrap; gap: 6px; }
   .cell {
     --flap: #C2C9D8; --fill: transparent; --edge: var(--slate);
     width: var(--cw); height: var(--ch); flex: none;
@@ -90,154 +150,278 @@
     background-position: left top, right top;
     background-repeat: no-repeat;
     cursor: pointer;
-    transition: background-color .2s, border-color .2s;
+    transition: transform .15s, background-color .2s, border-color .2s;
   }
-  .cell:hover { --edge: var(--ink); }
-  .cell.is-sent    { --fill: var(--green); --edge: var(--green); --flap: rgba(255,255,255,.8); }
-  .cell.is-error   { --fill: var(--red);   --edge: var(--red);   --flap: rgba(255,255,255,.8); }
+  .cell:hover { --edge: var(--ink); transform: translateY(-2px); }
+  .cell.is-sent    { --fill: var(--green); --edge: var(--green); --flap: rgba(255,255,255,.85); }
+  .cell.is-error   { --fill: var(--red);   --edge: var(--red);   --flap: rgba(255,255,255,.85); }
   .cell.is-sending { --fill: var(--orange); --edge: var(--orange); --flap: rgba(22,33,62,.6); animation: ring 1s ease-in-out infinite; }
   .cell.is-sim     { --edge: var(--green); --flap: var(--green); }
-  .waffle.reveal .cell { animation: pop .45s cubic-bezier(.2,.8,.3,1) both; animation-delay: calc(var(--i) * 7ms); }
-  @keyframes pop  { from { opacity: 0; transform: scale(.55); } }
-  @keyframes ring { 50% { box-shadow: 0 0 0 4px rgba(255,107,53,.28); } }
+  .waffle.reveal .cell { animation: pop .4s cubic-bezier(.2,.8,.3,1) both; animation-delay: calc(var(--i) * 6ms); }
+  @keyframes pop  { from { opacity: 0; transform: scale(.5); } }
+  @keyframes ring { 50% { box-shadow: 0 0 0 4px rgba(255,107,53,.35); } }
 
   .legend { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
-    display: inline-flex; align-items: center; gap: 9px;
+    display: inline-flex; align-items: center; gap: 8px;
     background: var(--sheet); border: 1px solid var(--line); border-radius: 999px;
-    padding: 6px 14px 6px 10px; cursor: pointer; font-weight: 500;
+    padding: 6px 14px 6px 10px; cursor: pointer; font-weight: 500; font-size: 13.5px;
+    transition: all .2s;
   }
   .chip:hover { border-color: var(--ink); }
   .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .chip .sw { --cw: 18px; --ch: 13px; border-radius: 3px; pointer-events: none; cursor: default; }
-  .chip .n { color: var(--muted); font-weight: 600; }
+  .chip .sw { --cw: 16px; --ch: 11px; border-radius: 3px; pointer-events: none; }
+  .chip .n { color: var(--muted); font-weight: 600; font-size: 12px; }
   .chip[aria-pressed="true"] .n { color: #B9C3DD; }
 
-  /* ---------- Painel de envio ---------- */
+  /* ---------- Painel de Controle (Lateral) ---------- */
   .panel {
-    background: var(--ink); color: #fff; border-radius: 16px; padding: 24px;
+    background: var(--ink); color: #fff; border-radius: 18px; padding: 24px;
+    box-shadow: var(--shadow-md);
   }
-  .panel h2 { font: 700 22px/1.2 var(--display); letter-spacing: -0.01em; margin: 0 0 18px; }
-  .panel h3 { font: 600 15px/1.2 var(--display); margin: 26px 0 10px; color: #C8D0E4; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .panel h2 { font: 700 22px/1.2 var(--display); letter-spacing: -0.01em; margin: 0; }
+  .panel-badge { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); color: #B9C3DD; }
+  
+  .panel h3 { font: 600 14px/1.2 var(--display); margin: 24px 0 10px; color: #C8D0E4; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Segmented Mode Control */
   .mode { border: 0; padding: 0; margin: 0 0 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--ink-deep); border-radius: 10px; padding: 4px; }
   .mode label { position: relative; }
   .mode input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
-  .mode span { display: block; text-align: center; padding: 8px 10px; border-radius: 7px; font-weight: 600; color: #B9C3DD; }
-  .mode input:checked + span { background: #fff; color: var(--ink); }
-  .mode input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
-  .hint { color: #B9C3DD; font-size: 14px; margin: 0 0 18px; min-height: 42px; }
+  .mode span { display: block; text-align: center; padding: 8px 10px; border-radius: 7px; font-weight: 600; color: #B9C3DD; font-size: 14px; transition: all .2s; }
+  .mode input:checked + span { background: #fff; color: var(--ink); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+  
+  .hint { color: #A8B4D4; font-size: 13.5px; margin: 0 0 16px; min-height: 40px; line-height: 1.4; }
+  
   .field { display: block; margin-bottom: 14px; }
-  .field > span { display: block; font-size: 14px; color: #C8D0E4; margin-bottom: 5px; }
-  .field input {
+  .field > span { display: block; font-size: 13.5px; color: #C8D0E4; margin-bottom: 6px; font-weight: 500; }
+  .field input, .field textarea, .field select {
     width: 100%; background: var(--ink-soft); border: 1px solid var(--ink-edge); color: #fff;
-    border-radius: 8px; padding: 9px 11px;
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; transition: border-color .2s;
   }
-  .field input:focus { border-color: var(--orange); }
-  .estimate { font-size: 14px; color: #C8D0E4; margin: 4px 0 16px; min-height: 42px; }
+  .field input:focus, .field textarea:focus { border-color: var(--orange); outline: none; }
+  .estimate { font-size: 13px; color: #A8B4D4; margin: 4px 0 18px; min-height: 38px; line-height: 1.4; }
 
+  /* Botões de Ação */
   .btn {
     border: 1px solid transparent; border-radius: 10px; padding: 11px 16px; font-weight: 600; cursor: pointer;
-    background: #fff; color: var(--ink);
+    background: #fff; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all .2s;
   }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn.run { width: 100%; font-size: 16px; padding: 13px 16px; }
-  .btn.run.real { background: var(--orange); color: var(--ink); }
+  .btn.run { width: 100%; font-size: 15.5px; padding: 13px 18px; }
+  .btn.run.real { background: var(--orange); color: #fff; }
+  .btn.run.real:not(:disabled):hover { background: var(--orange-hover); }
   .btn.ghost { background: transparent; border-color: var(--ink-edge); color: #fff; width: 100%; margin-top: 8px; }
-  .btn:not(:disabled):hover { filter: brightness(.94); }
+  .btn.ghost:hover { background: var(--ink-soft); }
 
   .progress { margin-top: 16px; }
-  .bar { height: 6px; background: var(--ink-soft); border-radius: 99px; overflow: hidden; }
-  .bar i { display: block; height: 100%; width: 0; background: var(--orange); transition: width .25s; }
-  .progress p { margin: 8px 0 0; font-size: 14px; color: #C8D0E4; }
+  .bar { height: 7px; background: var(--ink-soft); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--orange); transition: width .25s ease-out; }
+  .progress p { margin: 8px 0 0; font-size: 13px; color: #C8D0E4; display: flex; justify-content: space-between; }
 
+  /* Log de Execução */
+  .log-wrap { position: relative; }
+  .log-actions { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+  .btn-log-action { background: none; border: 0; color: #A8B4D4; font-size: 12px; cursor: pointer; text-decoration: underline; padding: 2px 4px; }
+  .btn-log-action:hover { color: #fff; }
   .log {
     list-style: none; margin: 0; padding: 10px 12px; background: var(--ink-deep); border-radius: 10px;
-    height: 210px; overflow: auto; font: 400 12.5px/1.55 ui-monospace, Menlo, Consolas, monospace;
+    height: 190px; overflow: auto; font: 400 12px/1.55 ui-monospace, Menlo, Consolas, monospace;
+    border: 1px solid rgba(255,255,255,0.05);
   }
-  .log li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; color: #C8D0E4; }
+  .log li { display: grid; grid-template-columns: 60px 1fr; gap: 8px; color: #C8D0E4; padding-block: 1px; }
   .log li time { color: #6F7CA3; }
   .log li span { overflow-wrap: anywhere; }
   .log .l-ok span { color: #7FD6B6; }
   .log .l-err span { color: #FF8FA6; }
   .log .l-warn span { color: #FFC07A; }
-  .log .empty { display: block; color: #8592B5; font-family: var(--text); font-size: 14px; }
+  .log .empty { display: block; color: #8592B5; font-family: var(--text); font-size: 13px; }
 
-  /* ---------- Lista ---------- */
-  .list { background: var(--sheet); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-  .tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+  /* ---------- Lista e Abas ---------- */
+  .list { background: var(--sheet); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-sm); }
+  .tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--line); background: #FAFBFD; overflow-x: auto; }
   .tab {
-    background: none; border: 0; padding: 15px 12px 13px; font-weight: 600; color: var(--muted); cursor: pointer;
-    border-bottom: 3px solid transparent; margin-bottom: -1px;
+    background: none; border: 0; padding: 16px 14px 14px; font-weight: 600; color: var(--muted); cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -1px; font-size: 14.5px; display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap; transition: color .2s;
   }
   .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--orange); }
   .tab:hover { color: var(--ink); }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px 20px; }
-  .search { flex: 1 1 240px; }
+  .search { flex: 1 1 240px; position: relative; }
   .search input {
-    width: 100%; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 9px 12px;
+    width: 100%; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 9px 12px 9px 34px;
+    font-size: 14px;
   }
-  .search input:focus { border-color: var(--ink); outline: none; box-shadow: 0 0 0 2px rgba(22,33,62,.18); }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--slate); pointer-events: none; }
+  .search input:focus { border-color: var(--ink); outline: none; box-shadow: 0 0 0 2px rgba(22,33,62,.15); }
   .link {
-    background: none; border: 0; padding: 4px 2px; color: var(--ink); font-weight: 600; cursor: pointer;
-    text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--slate);
+    background: none; border: 0; padding: 6px 4px; color: var(--ink); font-weight: 600; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--slate); font-size: 14px;
   }
   .link:disabled { opacity: .4; cursor: not-allowed; }
 
   .table-wrap { overflow-x: auto; position: relative; }
-  table { width: 100%; border-collapse: collapse; min-width: 700px; }
-  th { text-align: left; font-weight: 600; font-size: 13.5px; color: var(--muted); padding: 9px 20px; background: var(--paper); border-block: 1px solid var(--line); }
-  td { padding: 12px 20px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td.nm { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  th { text-align: left; font-weight: 600; font-size: 13px; color: var(--muted); padding: 10px 20px; background: var(--paper); border-block: 1px solid var(--line); }
+  td { padding: 12px 20px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  td.nm { font-weight: 600; color: var(--ink); }
   td.em { color: var(--muted); }
-  td.dt { color: var(--muted); white-space: nowrap; }
+  td.dt { color: var(--muted); white-space: nowrap; font-size: 13.5px; }
   td.ac { text-align: right; white-space: nowrap; }
-  .st { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 13.5px; font-weight: 600; }
+  .st { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12.5px; font-weight: 600; }
   .st-enviado  { background: var(--green-bg); color: var(--green); }
   .st-pendente { background: var(--paper); color: var(--muted); }
   .st-erro     { background: var(--red-bg); color: var(--red); }
   .st-enviando { background: #FFE2D6; color: #8A2E0B; }
-  .simtag { margin-left: 6px; font-size: 13px; color: var(--green); font-weight: 600; }
-  .errmsg { display: block; color: var(--red); font-size: 13px; margin-top: 3px; max-width: 30ch; }
-  .empty-row td { text-align: center; padding: 44px 20px; color: var(--muted); }
-  .empty-row p { margin: 0 0 8px; }
+  .simtag { margin-left: 6px; font-size: 12px; color: var(--green); font-weight: 600; }
+  .errmsg { display: block; color: var(--red); font-size: 12px; margin-top: 2px; max-width: 30ch; }
+  .empty-row td { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .empty-row p { margin: 0 0 10px; font-size: 15px; }
 
-  .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; color: var(--muted); font-size: 14px; }
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; color: var(--muted); font-size: 13.5px; background: #FAFBFD; border-top: 1px solid var(--line); }
   .pager div { display: flex; gap: 14px; }
 
-  /* ---------- Prévia ---------- */
-  .preview-bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; padding: 16px 20px; }
-  .preview-bar label span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
-  .preview-bar select { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 9px 12px; min-width: 240px; }
-  .seg2 { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  .seg2 button { background: var(--sheet); border: 0; padding: 9px 14px; cursor: pointer; font-weight: 500; }
+  /* ---------- Aba Adicionar E-mail ---------- */
+  .add-container { padding: 32px 24px; max-width: 580px; margin: 0 auto; }
+  .add-card {
+    background: var(--sheet); border: 1px solid var(--line); border-radius: 16px;
+    padding: 28px; box-shadow: var(--shadow-sm);
+  }
+  .add-card h3 { font: 700 22px/1.2 var(--display); margin: 0 0 8px; color: var(--ink); }
+  .add-card p { color: var(--muted); font-size: 14.5px; margin: 0 0 24px; line-height: 1.5; }
+  
+  .form-field { margin-bottom: 18px; }
+  .form-field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; color: var(--ink); }
+  .form-field input {
+    width: 100%; border: 1.5px solid var(--line); background: var(--paper); border-radius: 10px;
+    padding: 11px 14px; font-size: 15px; transition: border-color .2s;
+  }
+  .form-field input:focus { border-color: var(--orange); outline: none; background: #fff; }
+  .form-field small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 5px; }
+
+  .dest-hint {
+    background: #F0F4FA; border: 1px solid #D5E0F2; border-radius: 10px; padding: 12px 14px;
+    font-size: 13.5px; color: var(--ink); margin-bottom: 24px; display: flex; align-items: center; gap: 8px;
+  }
+  .btn-submit-add {
+    background: var(--orange); color: #fff; font-size: 15.5px; font-weight: 700; width: 100%;
+    padding: 13px; border-radius: 10px; border: 0; cursor: pointer; transition: background .2s;
+  }
+  .btn-submit-add:hover { background: var(--orange-hover); }
+
+  /* ---------- Aba Editor de Mensagem & Display ---------- */
+  .template-editor-grid {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 700px;
+  }
+  .editor-sidebar {
+    padding: 24px; border-right: 1px solid var(--line); background: #FAFBFD; overflow-y: auto; max-height: 780px;
+  }
+  .editor-preview {
+    padding: 24px 20px; background: #E3E7EF; display: flex; flex-direction: column; align-items: center;
+  }
+  .editor-section-title {
+    font: 700 16px/1.2 var(--display); color: var(--ink); margin: 20px 0 12px;
+    display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 6px;
+  }
+  .editor-section-title:first-of-type { margin-top: 0; }
+  
+  .editor-field { margin-bottom: 16px; }
+  .editor-field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
+  .editor-field input, .editor-field textarea {
+    width: 100%; border: 1.5px solid var(--line); background: #fff; border-radius: 8px;
+    padding: 9px 12px; font-size: 14px; transition: border-color .2s;
+  }
+  .editor-field textarea { resize: vertical; min-height: 80px; line-height: 1.45; }
+  .editor-field input:focus, .editor-field textarea:focus { border-color: var(--orange); outline: none; }
+  .editor-field small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  .editor-actions {
+    display: flex; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  .btn-save-tpl {
+    background: var(--orange); color: #fff; border: 0; border-radius: 8px; padding: 11px 18px;
+    font-weight: 700; cursor: pointer; flex: 2; transition: background .2s;
+  }
+  .btn-save-tpl:hover { background: var(--orange-hover); }
+  .btn-reset-tpl {
+    background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 14px; font-weight: 600; cursor: pointer; flex: 1; transition: all .2s;
+  }
+  .btn-reset-tpl:hover { background: var(--paper); color: var(--ink); }
+
+  /* ---------- Prévia Oficial ---------- */
+  .preview-bar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .preview-bar-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .preview-bar label span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+  .preview-bar select { border: 1px solid var(--line); background: var(--paper); border-radius: 9px; padding: 8px 12px; min-width: 240px; font-size: 14px; }
+  .seg2 { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg2 button { background: var(--sheet); border: 0; padding: 8px 14px; cursor: pointer; font-weight: 500; font-size: 13px; }
   .seg2 button + button { border-left: 1px solid var(--line); }
   .seg2 button[aria-pressed="true"] { background: var(--ink); color: #fff; }
-  .frame-stage { background: #E3E7EF; padding: 24px 16px; display: flex; justify-content: center; }
-  .frame-stage iframe { border: 0; background: #F4F4F5; height: 720px; max-width: 100%; border-radius: 8px; box-shadow: 0 1px 2px rgba(22,33,62,.12); }
-  .note { color: var(--muted); font-size: 14px; padding: 12px 20px 18px; margin: 0; }
+  .frame-stage { background: #E3E7EF; padding: 24px 16px; display: flex; justify-content: center; min-height: 580px; width: 100%; }
+  .frame-stage iframe { border: 0; background: #FFFFFF; height: 680px; max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(22,33,62,.15); transition: width .2s; }
+  .note { color: var(--muted); font-size: 13.5px; padding: 12px 20px; margin: 0; background: #FAFBFD; border-top: 1px solid var(--line); }
 
-  /* ---------- Diálogo ---------- */
-  dialog { border: 0; border-radius: 16px; padding: 26px; max-width: 440px; width: calc(100% - 32px); color: var(--ink); }
-  dialog::backdrop { background: rgba(15,24,48,.6); }
-  dialog h2 { font: 700 22px/1.2 var(--display); margin: 0 0 8px; }
-  dialog p { color: var(--muted); margin: 0 0 22px; }
+  /* ---------- Diálogos e Modais ---------- */
+  dialog {
+    border: 0; border-radius: 18px; padding: 26px; max-width: 480px; width: calc(100% - 32px);
+    color: var(--ink); box-shadow: 0 16px 40px rgba(15,24,48,0.25);
+  }
+  dialog::backdrop { background: rgba(15,24,48,.65); backdrop-filter: blur(2px); }
+  dialog h2 { font: 700 22px/1.2 var(--display); margin: 0 0 10px; }
+  dialog p { color: var(--muted); margin: 0 0 20px; font-size: 14.5px; line-height: 1.5; }
   .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }
   .dlg-actions .btn { border-color: var(--line); }
-  .dlg-actions .btn.real { background: var(--orange); border-color: var(--orange); }
+  .dlg-actions .btn.real { background: var(--orange); border-color: var(--orange); color: #fff; }
 
-  .error-box { padding: 36px 24px; text-align: center; color: var(--muted); }
-  .error-box strong { display: block; color: var(--red); margin-bottom: 6px; font-size: 16px; }
+  /* Modal de Diagnóstico */
+  .diag-list { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 10px; }
+  .diag-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+    font-size: 13.5px;
+  }
+  .diag-label { font-weight: 600; color: var(--ink); }
+  .diag-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .diag-badge {
+    padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;
+  }
+  .diag-badge.ok { background: var(--green-bg); color: var(--green); }
+  .diag-badge.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .diag-badge.err { background: var(--red-bg); color: var(--red); }
+
+  /* Toast Notifications */
+  .toast-container {
+    position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  }
+  .toast {
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2); font-size: 14px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px; pointer-events: auto;
+    animation: toast-in .25s ease-out;
+  }
+  .toast.toast-ok { border-left: 4px solid var(--green); }
+  .toast.toast-err { border-left: 4px solid var(--red); }
+  .toast.toast-warn { border-left: 4px solid var(--orange); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
 
   /* ---------- Responsivo ---------- */
   @media (max-width: 980px) {
     .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hero" "panel" "list"; row-gap: 28px; }
     .panel { position: static; }
+    .template-editor-grid { grid-template-columns: 1fr; }
+    .editor-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
   }
   @media (max-width: 560px) {
     :root { --cw: 22px; --ch: 16px; }
-    .waffle { gap: 5px; }
-    .top, .layout { padding-inline: 16px; }
+    .waffle { gap: 4px; }
+    .top-inner, .layout { padding-inline: 16px; }
     .brand-sec { display: none; }
     .toolbar, .pager, .preview-bar { padding-inline: 16px; }
   }
@@ -249,80 +433,140 @@
 <body>
 
 <header class="top">
-  <div class="brand">
-    <svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true">
-      <rect x="0" y="0" width="30" height="21" rx="4" fill="#FF6B35"/>
-      <path d="M1.5 2.5 L15 12 L28.5 2.5" fill="none" stroke="#16213E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span class="brand-name">Politize</span>
-    <span class="brand-sec">Envio de e-mails</span>
+  <div class="top-inner">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <span class="brand-name">Politize</span>
+        <span class="brand-sec">Mailer Desktop App</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="status-pill" id="statusPill" title="Verificando backend...">
+        <span class="status-dot"></span>
+        <span id="statusLabel">Conectando...</span>
+      </div>
+      <button class="btn-diag" id="diagBtn" type="button" title="Diagnóstico dos Serviços">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Sistema
+      </button>
+    </div>
   </div>
-  <div class="top-meta" id="sourceInfo"></div>
 </header>
 
-<div class="demo" id="demoBar" hidden>
-  Dados de exemplo: nada daqui chega a um servidor. Defina <code>API_BASE</code> no início do script para ligar ao backend.
+<div class="app-banner" id="bannerAlert" hidden>
+  <span id="bannerText"></span>
 </div>
 
 <main class="layout">
 
+  <!-- Coluna Principal: Hero + Tabela -->
   <section class="hero" aria-labelledby="headline">
     <h1 id="headline">Carregando destinatários…</h1>
     <p class="sub" id="subline"></p>
-    <div class="waffle reveal" id="waffle" role="img" aria-label="Carregando"></div>
+    
+    <div class="waffle-container">
+      <div class="waffle-header">
+        <span>Mapa de Disparos</span>
+        <span id="waffleStats">0 destinatários</span>
+      </div>
+      <div class="waffle reveal" id="waffle" role="img" aria-label="Carregando"></div>
+    </div>
+
     <div class="legend" id="legend" role="group" aria-label="Filtrar destinatários por status"></div>
   </section>
 
+  <!-- Painel de Execução (Lateral) -->
   <aside class="panel" aria-labelledby="panelTitle">
-    <h2 id="panelTitle">Nova execução</h2>
+    <div class="panel-header">
+      <h2 id="panelTitle">Disparo</h2>
+      <span class="panel-badge" id="modeBadge">Teste</span>
+    </div>
 
     <fieldset class="mode">
       <legend class="sr">Modo de envio</legend>
-      <label><input type="radio" name="mode" value="teste" checked><span>Teste</span></label>
-      <label><input type="radio" name="mode" value="real"><span>Envio real</span></label>
+      <label><input type="radio" name="mode" value="teste" checked><span>Simulação</span></label>
+      <label><input type="radio" name="mode" value="real"><span>Envio Real</span></label>
     </fieldset>
     <p class="hint" id="modeHint"></p>
 
     <label class="field">
-      <span>Assunto</span>
-      <input type="text" id="subject" autocomplete="off">
+      <span>Assunto do E-mail</span>
+      <input type="text" id="subject" autocomplete="off" maxlength="998">
     </label>
+    
     <label class="field">
-      <span>Intervalo entre envios, em segundos</span>
+      <span>Intervalo entre envios (segundos)</span>
       <input type="number" id="interval" min="0" step="0.5" value="1" inputmode="decimal">
     </label>
     <p class="estimate" id="estimate"></p>
 
     <button class="btn run" id="runBtn" type="button"></button>
-    <button class="btn ghost" id="stopBtn" type="button" hidden>Parar</button>
+    <button class="btn ghost" id="stopBtn" type="button" hidden>Interromper Execução</button>
 
     <div class="progress" id="progress" hidden>
       <div class="bar"><i id="barFill"></i></div>
-      <p id="progressText" aria-live="polite"></p>
+      <p><span id="progressText" aria-live="polite"></span><span id="progressPct">0%</span></p>
     </div>
 
-    <h3>Registro</h3>
-    <ol class="log" id="log" aria-label="Registro da execução"></ol>
+    <div class="log-wrap">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:20px;">
+        <h3>Registro de Execução</h3>
+        <div class="log-actions">
+          <button class="btn-log-action" id="copyLogsBtn" type="button">Copiar</button>
+          <button class="btn-log-action" id="clearLogsBtn" type="button">Limpar</button>
+        </div>
+      </div>
+      <ol class="log" id="log" aria-label="Registro da execução"></ol>
+    </div>
   </aside>
 
-  <section class="list" aria-label="Destinatários e prévia">
+  <!-- Abas do Aplicativo -->
+  <section class="list" aria-label="Navegação do aplicativo">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="tabBtnRecipients" aria-controls="tabRecipients" aria-selected="true" type="button">Destinatários</button>
-      <button class="tab" role="tab" id="tabBtnPreview" aria-controls="tabPreview" aria-selected="false" type="button">Prévia do e-mail</button>
+      <button class="tab" role="tab" id="tabBtnRecipients" aria-controls="tabRecipients" aria-selected="true" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Destinatários
+      </button>
+      <button class="tab" role="tab" id="tabBtnAdd" aria-controls="tabAdd" aria-selected="false" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        Adicionar E-mail
+      </button>
+      <button class="tab" role="tab" id="tabBtnTemplate" aria-controls="tabTemplate" aria-selected="false" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Mensagem & Display
+      </button>
+      <button class="tab" role="tab" id="tabBtnPreview" aria-controls="tabPreview" aria-selected="false" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Prévia Oficial
+      </button>
     </div>
 
+    <!-- PAINEL 1: Destinatários -->
     <div id="tabRecipients" role="tabpanel" aria-labelledby="tabBtnRecipients">
       <div class="toolbar">
         <label class="search">
           <span class="sr">Buscar por nome ou e-mail</span>
-          <input type="search" id="search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="search" placeholder="Buscar por nome ou e-mail..." autocomplete="off">
         </label>
-        <button class="link" id="refreshBtn" type="button">Atualizar da planilha</button>
+        <button class="link" id="refreshBtn" type="button">Sincronizar Planilha</button>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Status</th><th scope="col">Data de envio</th><th scope="col"><span class="sr">Ação</span></th></tr>
+            <tr>
+              <th scope="col">Nome</th>
+              <th scope="col">E-mail</th>
+              <th scope="col">Status</th>
+              <th scope="col">Data de Envio</th>
+              <th scope="col" style="text-align:right;"><span class="sr">Ações</span></th>
+            </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -330,26 +574,153 @@
       <div class="pager" id="pager"></div>
     </div>
 
+    <!-- PAINEL 2: Adicionar 1 E-mail -->
+    <div id="tabAdd" role="tabpanel" aria-labelledby="tabBtnAdd" hidden>
+      <div class="add-container">
+        <div class="add-card">
+          <h3>Adicionar Novo Destinatário</h3>
+          <p>Cadastre um novo educador ou escola para entrar imediatamente no mapa de envelopes e na fila de disparos.</p>
+          
+          <form id="addForm">
+            <div class="form-field">
+              <label for="addName">Nome Completo</label>
+              <input type="text" id="addName" placeholder="Ex: Prof. Marcos Souza" required autocomplete="off">
+              <small>Utilizado para personalizar a saudação "Olá, {Nome}!" no e-mail.</small>
+            </div>
+
+            <div class="form-field">
+              <label for="addEmail">Endereço de E-mail</label>
+              <input type="email" id="addEmail" placeholder="Ex: marcos.souza@escola.edu.br" required autocomplete="off">
+              <small>Endereço eletrônico de destino verificado.</small>
+            </div>
+
+            <div class="dest-hint">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span id="addDestNotice">Sincronização com o Google Sheets ativa na próxima linha disponível.</span>
+            </div>
+
+            <button type="submit" class="btn-submit-add" id="addSubmitBtn">
+              + Inserir na Lista de Disparos
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL 3: Editar Mensagem & Display do E-mail -->
+    <div id="tabTemplate" role="tabpanel" aria-labelledby="tabBtnTemplate" hidden>
+      <div class="template-editor-grid">
+        <!-- Coluna de Edição -->
+        <div class="editor-sidebar">
+          <form id="templateForm">
+            <div class="editor-section-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Display & Identidade do Remetente
+            </div>
+
+            <div class="editor-field">
+              <label for="tplFromName">Nome de Exibição (Display Name)</label>
+              <input type="text" id="tplFromName" placeholder="Ex: Politize" required maxlength="100">
+              <small>Nome que o destinatário vê no topo do e-mail (ex: "Politize Educação").</small>
+            </div>
+
+            <div class="editor-field">
+              <label for="tplFromEmail">E-mail Remetente (From)</label>
+              <input type="email" id="tplFromEmail" placeholder="Ex: onboarding@resend.dev" required>
+              <small>Endereço de remetente configurado no Resend.</small>
+            </div>
+
+            <div class="editor-field">
+              <label for="tplSubject">Assunto da Campanha</label>
+              <input type="text" id="tplSubject" placeholder="Assunto do e-mail" required maxlength="998">
+            </div>
+
+            <div class="editor-section-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Conteúdo da Mensagem
+            </div>
+
+            <div class="editor-field">
+              <label for="tplHeroSubtitle">Subtítulo do Banner</label>
+              <input type="text" id="tplHeroSubtitle" placeholder="Transforme a forma como sua escola enxerga a política">
+            </div>
+
+            <div class="editor-field">
+              <label for="tplMainMessage">Mensagem Principal (Corpo do E-mail)</label>
+              <textarea id="tplMainMessage" rows="5" placeholder="Texto introdutório sobre o Politize..."></textarea>
+              <small>Apoio pedagógico, impacto e proposta para a instituição de ensino.</small>
+            </div>
+
+            <div class="editor-field">
+              <label for="tplButtonText">Texto do Botão Principal</label>
+              <input type="text" id="tplButtonText" placeholder="Ex: Saiba Mais →">
+            </div>
+
+            <div class="editor-field">
+              <label for="tplButtonUrl">Link do Botão Principal (URL)</label>
+              <input type="url" id="tplButtonUrl" placeholder="https://www.politize.com.br">
+            </div>
+
+            <div class="editor-section-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Chamada Final (CTA)
+            </div>
+
+            <div class="editor-field">
+              <label for="tplCtaTitle">Título da Chamada Final</label>
+              <input type="text" id="tplCtaTitle" placeholder="Leve o Politize para sua escola agora">
+            </div>
+
+            <div class="editor-field">
+              <label for="tplCtaBtnText">Texto do Botão Final</label>
+              <input type="text" id="tplCtaBtnText" placeholder="Entrar em Contato">
+            </div>
+
+            <div class="editor-actions">
+              <button type="submit" class="btn-save-tpl" id="saveTplBtn">💾 Salvar Mensagem</button>
+              <button type="button" class="btn-reset-tpl" id="resetTplBtn">↺ Padrão</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Coluna de Visualização do Display ao Vivo -->
+        <div class="editor-preview">
+          <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span style="font-weight:700; font-size:13px; color:var(--ink); text-transform:uppercase; letter-spacing:0.5px;">Display do E-mail em Tempo Real</span>
+            <button class="btn-diag" id="livePreviewRefreshBtn" type="button">↻ Atualizar Display</button>
+          </div>
+          <iframe id="editorLiveFrame" title="Display ao vivo do e-mail" sandbox="allow-same-origin allow-scripts" style="width:100%; height:680px; border:0; background:#fff; border-radius:10px; box-shadow:var(--shadow-sm);"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL 4: Prévia Oficial (MJML) -->
     <div id="tabPreview" role="tabpanel" aria-labelledby="tabBtnPreview" hidden>
       <div class="preview-bar">
-        <label>
-          <span>Destinatário</span>
-          <select id="previewWho"></select>
-        </label>
+        <div class="preview-bar-left">
+          <label>
+            <span>Destinatário para Interpolação</span>
+            <select id="previewWho"></select>
+          </label>
+          <button class="btn-diag" id="refreshPreviewBtn" type="button" style="margin-top:20px;">
+            Atualizar Prévia
+          </button>
+        </div>
         <div class="seg2" role="group" aria-label="Largura da prévia">
-          <button type="button" data-w="desktop" aria-pressed="true">Computador</button>
-          <button type="button" data-w="mobile" aria-pressed="false">Celular</button>
+          <button type="button" data-w="desktop" aria-pressed="true">Computador (640px)</button>
+          <button type="button" data-w="mobile" aria-pressed="false">Celular (375px)</button>
         </div>
       </div>
       <div class="frame-stage">
-        <iframe id="previewFrame" title="Prévia do e-mail" sandbox="" style="width:640px"></iframe>
+        <iframe id="previewFrame" title="Prévia do e-mail" sandbox="allow-same-origin allow-scripts" style="width:640px"></iframe>
       </div>
-      <p class="note">Esta prévia reproduz o layout do template. O e-mail enviado é gerado a partir do arquivo MJML, então pequenas diferenças são normais.</p>
+      <p class="note">Esta prévia é renderizada diretamente pelo motor de compilação MJML do backend com as variáveis reais do destinatário.</p>
     </div>
   </section>
 
 </main>
 
+<!-- Modal de Confirmação para Envio Real -->
 <dialog id="confirm" aria-labelledby="confirmTitle">
   <h2 id="confirmTitle"></h2>
   <p id="confirmBody"></p>
@@ -359,44 +730,60 @@
   </div>
 </dialog>
 
+<!-- Modal de Diagnóstico do Sistema -->
+<dialog id="diagModal" aria-labelledby="diagTitle">
+  <h2 id="diagTitle">Diagnóstico do Sistema</h2>
+  <p>Status atual da conectividade e componentes da aplicação:</p>
+  <ul class="diag-list" id="diagList"></ul>
+  <div class="dlg-actions">
+    <button class="btn" id="diagClose" type="button">Fechar</button>
+  </div>
+</dialog>
+
+<!-- Toasts Flutuantes -->
+<div class="toast-container" id="toastContainer"></div>
+
 <script>
 (() => {
 'use strict';
 
 /* =====================================================================
-   CONFIGURAÇÃO
+   CONFIGURAÇÃO DINÂMICA DO CLIENTE
    ---------------------------------------------------------------------
-   API_BASE vazio  → usa dados de exemplo (nada é enviado de verdade).
-   API_BASE = "http://localhost:8000" → fala com o backend.
-
-   Contrato esperado do backend:
-     GET  /api/recipients
-          → [{ "row": 2, "nome": "Ana", "email": "ana@x.br",
-               "status": "Enviado" | "", "data_envio": "2026-10-17 17:30:02" }]
-     POST /api/send   corpo: { row, email, dry_run, subject }
-          → { "id": "<id do Resend>", "data_envio": "AAAA-MM-DD HH:MM:SS" }
-          Em dry_run o backend só simula (não envia nem grava na planilha).
-          Em erro, responder status ≥ 400 com { "detail": "mensagem" }.
-   O intervalo entre envios é controlado aqui no front-end.
+   Detecta automaticamente a origem da API a partir do navegador.
+   Se servido via http://localhost:8000/, conecta diretamente na raiz.
    ===================================================================== */
-const API_BASE = "";
+const API_BASE = window.location.origin.startsWith("http") ? window.location.origin : "http://127.0.0.1:8000";
 const SHEET_LABEL = "Destinatários";
 const DEFAULT_SUBJECT = "Conheça o Politize — Educação Política para sua Escola";
 const PAGE_SIZE = 12;
 
 /* ---------- Utilitários ---------- */
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const pad = (n) => String(n).padStart(2, "0");
 const nowStamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 const fmtDate = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(s || ""); return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : (s || "—"); };
 const fmtDur = (sec) => { sec = Math.round(sec); if (sec < 60) return `${sec} s`; return `${Math.floor(sec / 60)} min ${pad(sec % 60)} s`; };
 const plural = (n, one, many) => (n === 1 ? one : many);
 
-/* ---------- Camada de dados ---------- */
-function realApi() {
-  const call = async (path, opts = {}) => {
+function showToast(text, type = "ok") {
+  const c = $("toastContainer");
+  const t = document.createElement("div");
+  t.className = `toast toast-${type}`;
+  t.textContent = text;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = "0";
+    t.style.transition = "opacity .3s";
+    setTimeout(() => t.remove(), 300);
+  }, 4000);
+}
+
+/* ---------- Camada de Comunicação com a API ---------- */
+const api = {
+  async call(path, opts = {}) {
     const res = await fetch(API_BASE + path, { headers: { "Content-Type": "application/json" }, ...opts });
     if (!res.ok) {
       let msg = res.statusText || `Erro ${res.status}`;
@@ -404,66 +791,70 @@ function realApi() {
       throw new Error(msg);
     }
     return res.json();
-  };
-  return {
-    live: true,
-    waitScale: 1,
-    listRecipients: () => call("/api/recipients"),
-    sendOne: (r, o) => call("/api/send", { method: "POST", body: JSON.stringify({ row: r.row, email: r.email, dry_run: o.dryRun, subject: o.subject }) }),
-  };
-}
-
-function mockApi() {
-  let seed = 20261110;
-  const rng = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const first = ["Ana", "Bruno", "Carla", "Daniel", "Elisa", "Fábio", "Gabriela", "Heitor", "Isabela", "João", "Karina", "Lucas", "Marina", "Nelson", "Olívia", "Paulo", "Rafaela", "Sérgio", "Tatiane", "Vinícius", "Yara", "Zeca"];
-  const last = ["Almeida", "Barbosa", "Cardoso", "Duarte", "Esteves", "Ferraz", "Guimarães", "Holanda", "Ibrahim", "Junqueira", "Lacerda", "Moreira", "Nogueira", "Oliveira", "Pacheco", "Queiroz", "Ribeiro", "Siqueira", "Teixeira", "Vasconcelos"];
-  const schools = ["lourenco-filho", "paulo-freire", "darcy-ribeiro", "anisio-teixeira", "cecilia-meireles", "machado-de-assis", "cora-coralina", "rui-barbosa", "monteiro-lobato", "jose-de-alencar", "carlos-drummond", "clarice-lispector"];
-  const TOTAL = 120, SENT = 46;
-  const data = [];
-  const seen = new Set();
-  for (let i = 0; i < TOTAL; i++) {
-    let f = first[i % first.length], l = last[(i * 7 + Math.floor(i / first.length)) % last.length];
-    let key = f + l, bump = 0;
-    while (seen.has(key)) { bump++; l = last[(i * 7 + Math.floor(i / first.length) + bump) % last.length]; key = f + l; }
-    seen.add(key);
-    const school = schools[(i * 5) % schools.length];
-    const email = `${norm(f)}.${norm(l)}@${school}.example`;
-    let status = "", data_envio = "";
-    if (i < SENT) {
-      status = "Enviado";
-      data_envio = i < 30 ? `2026-10-17 17:30:${pad(2 + i * 2 % 58)}` : `2026-11-09 14:02:${pad(1 + (i - 30) * 3 % 58)}`;
+  },
+  async getHealth() {
+    return this.call("/api/health");
+  },
+  async listRecipients() {
+    const res = await this.call("/api/recipients");
+    if (res && Array.isArray(res.recipients)) {
+      if (res.warning) showBanner(res.warning);
+      return res.recipients;
     }
-    data.push({ row: i + 2, nome: `${f} ${l}`, email, status, data_envio });
+    if (Array.isArray(res)) return res;
+    return [];
+  },
+  async addRecipient(nome, email) {
+    return this.call("/api/recipients", {
+      method: "POST",
+      body: JSON.stringify({ nome, email })
+    });
+  },
+  async getTemplate() {
+    return this.call("/api/template");
+  },
+  async saveTemplate(config) {
+    return this.call("/api/template", {
+      method: "POST",
+      body: JSON.stringify(config)
+    });
+  },
+  async resetTemplate() {
+    return this.call("/api/template/reset", {
+      method: "POST"
+    });
+  },
+  async sendOne(r, o) {
+    return this.call("/api/send", {
+      method: "POST",
+      body: JSON.stringify({
+        row: r.row,
+        email: r.email,
+        dry_run: Boolean(o.dryRun),
+        subject: o.subject,
+      })
+    });
   }
-  const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-  const errors = ["Resend: limite de envios atingido (429)", "Resend: domínio do remetente não verificado", "Google Sheets: cota de escrita excedida"];
-  return {
-    live: false,
-    waitScale: 6, // nos dados de exemplo, os intervalos passam 6× mais rápido
-    listRecipients: async () => { await delay(250); return data.map((d) => ({ ...d })); },
-    sendOne: async (r, o) => {
-      await delay(180 + Math.random() * 240);
-      if (Math.random() < 0.06) throw new Error(errors[Math.floor(Math.random() * errors.length)]);
-      const stamp = nowStamp();
-      if (!o.dryRun) { const d = data.find((x) => x.row === r.row); if (d) { d.status = "Enviado"; d.data_envio = stamp; } }
-      return { id: "mock_" + Math.random().toString(36).slice(2, 10), data_envio: stamp };
-    },
-  };
-}
+};
 
-const api = API_BASE ? realApi() : mockApi();
-
-/* ---------- Estado ---------- */
+/* ---------- Estado Global ---------- */
 const state = {
   recipients: [], filter: "todos", query: "", page: 1,
   mode: "teste", running: false, stop: false, wake: null, previewWidth: "desktop",
+  systemStatus: null, activeTab: "recipients",
 };
+
 const el = {};
-["headline", "subline", "waffle", "legend", "modeHint", "subject", "interval", "estimate", "runBtn", "stopBtn",
- "progress", "barFill", "progressText", "log", "tbody", "pager", "search", "refreshBtn", "sourceInfo", "demoBar",
- "tabBtnRecipients", "tabBtnPreview", "tabRecipients", "tabPreview", "previewWho", "previewFrame",
- "confirm", "confirmTitle", "confirmBody", "confirmNo", "confirmYes"].forEach((id) => (el[id] = $(id)));
+["headline", "subline", "waffle", "waffleStats", "legend", "modeHint", "modeBadge", "subject", "interval", "estimate",
+ "runBtn", "stopBtn", "progress", "barFill", "progressText", "progressPct", "log", "copyLogsBtn", "clearLogsBtn",
+ "tbody", "pager", "search", "refreshBtn", "statusPill", "statusLabel", "diagBtn", "diagModal", "diagList", "diagClose",
+ "bannerAlert", "bannerText", "tabBtnRecipients", "tabBtnAdd", "tabBtnTemplate", "tabBtnPreview",
+ "tabRecipients", "tabAdd", "tabTemplate", "tabPreview",
+ "addForm", "addName", "addEmail", "addSubmitBtn", "addDestNotice",
+ "templateForm", "tplFromName", "tplFromEmail", "tplSubject", "tplHeroSubtitle", "tplMainMessage",
+ "tplButtonText", "tplButtonUrl", "tplCtaTitle", "tplCtaBtnText", "saveTplBtn", "resetTplBtn",
+ "editorLiveFrame", "livePreviewRefreshBtn",
+ "previewWho", "previewFrame", "refreshPreviewBtn", "confirm", "confirmTitle", "confirmBody", "confirmNo", "confirmYes"].forEach((id) => (el[id] = $(id)));
 
 const keyOf = (r) => (r.status === "enviado" ? "enviado" : r.status === "erro" ? "erro" : "pendente");
 const labelOf = (r) => ({ enviado: "Enviado", erro: "Erro", enviando: "Enviando" }[r.status] || "Pendente");
@@ -474,7 +865,12 @@ const counts = () => {
   return c;
 };
 
-/* ---------- Registro ---------- */
+function showBanner(msg) {
+  el.bannerText.textContent = msg;
+  el.bannerAlert.hidden = false;
+}
+
+/* ---------- Sistema de Logs ---------- */
 function log(level, msg) {
   const empty = el.log.querySelector(".empty");
   if (empty) empty.remove();
@@ -489,7 +885,7 @@ function resetLog() {
   el.log.innerHTML = '<li class="empty">As mensagens da execução aparecem aqui.</li>';
 }
 
-/* ---------- Mosaico de envelopes ---------- */
+/* ---------- Mosaico de Envelopes ---------- */
 function cellClass(r) {
   if (r.status === "enviado") return "cell is-sent";
   if (r.status === "erro") return "cell is-error";
@@ -497,6 +893,7 @@ function cellClass(r) {
   return r.sim ? "cell is-sim" : "cell";
 }
 function updateCell(r) {
+  if (!r._cell) return;
   r._cell.className = cellClass(r);
   r._cell.title = `${r.nome}, ${labelOf(r).toLowerCase()}${r.sim ? " (simulado)" : ""}`;
 }
@@ -510,7 +907,8 @@ function buildWaffle() {
     updateCell(r);
     el.waffle.appendChild(s);
   });
-  setTimeout(() => el.waffle.classList.remove("reveal"), 1800);
+  el.waffleStats.textContent = `${state.recipients.length} destinatários`;
+  setTimeout(() => el.waffle.classList.remove("reveal"), 1500);
 }
 
 /* ---------- Renderização ---------- */
@@ -518,17 +916,17 @@ function renderHero() {
   const c = counts();
   const pend = c.pendente + c.erro;
   const total = c.todos;
-  if (total === 0) el.headline.textContent = "A planilha não tem destinatários.";
+  if (total === 0) el.headline.textContent = "Nenhum destinatário disponível.";
   else if (pend === 0) el.headline.textContent = "Todos os destinatários já receberam o e-mail.";
-  else el.headline.textContent = `${pend} ${plural(pend, "destinatário ainda não recebeu", "destinatários ainda não receberam")} o e-mail.`;
+  else el.headline.textContent = `${pend} ${plural(pend, "destinatário aguarda", "destinatários aguardam")} o e-mail.`;
 
   const last = state.recipients.map((r) => r.data_envio).filter(Boolean).sort().pop();
   let sub = `${c.enviado} de ${total} já enviados.`;
   if (last) { const f = fmtDate(last).split(" "); sub += ` Último envio em ${f[0]} às ${f[1]}.`; }
-  if (c.erro) sub += ` ${c.erro} ${plural(c.erro, "falhou", "falharam")} nesta sessão e ${plural(c.erro, "entra", "entram")} na próxima execução.`;
+  if (c.erro) sub += ` ${c.erro} falhou nesta sessão.`;
   el.subline.textContent = sub;
 
-  el.waffle.setAttribute("aria-label", `${c.enviado} enviados, ${c.pendente} pendentes e ${c.erro} com erro, de ${total} destinatários`);
+  el.waffle.setAttribute("aria-label", `${c.enviado} enviados, ${c.pendente} pendentes e ${c.erro} com erro`);
 
   const chips = [["todos", "Todos", ""], ["enviado", "Enviado", "is-sent"], ["pendente", "Pendente", ""], ["erro", "Erro", "is-error"]];
   el.legend.innerHTML = chips.map(([k, label, cls]) =>
@@ -552,14 +950,14 @@ function renderTable() {
   const slice = rows.slice(start, start + PAGE_SIZE);
 
   if (!slice.length) {
-    el.tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><p>Nenhum destinatário encontrado.</p><button class="link" type="button" data-clear>Limpar busca e filtros</button></td></tr>`;
+    el.tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><p>Nenhum destinatário encontrado.</p><button class="link" type="button" data-clear>Limpar filtros</button></td></tr>`;
     el.pager.innerHTML = "";
     return;
   }
   el.tbody.innerHTML = slice.map((r) => {
     const k = r.status === "enviando" ? "enviando" : keyOf(r);
     const action = r.status === "enviado" ? "" :
-      `<button class="link" type="button" data-send="${r.row}" ${state.running ? "disabled" : ""}>${r.status === "erro" ? "Tentar de novo" : "Enviar só este"}</button>`;
+      `<button class="link" type="button" data-send="${r.row}" ${state.running ? "disabled" : ""}>${r.status === "erro" ? "Tentar de novo" : "Enviar agora"}</button>`;
     return `<tr>
       <td class="nm">${esc(r.nome)}</td>
       <td class="em">${esc(r.email)}</td>
@@ -570,23 +968,26 @@ function renderTable() {
   }).join("");
 
   const from = start + 1, to = start + slice.length;
-  el.pager.innerHTML = `<span>Mostrando ${from}–${to} de ${rows.length}</span>
+  el.pager.innerHTML = `<span>Exibindo ${from}–${to} de ${rows.length}</span>
     <div><button class="link" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? "disabled" : ""}>Anterior</button>
     <button class="link" type="button" data-page="${state.page + 1}" ${state.page >= pages ? "disabled" : ""}>Próxima</button></div>`;
 }
 
 function renderPanel() {
   const real = state.mode === "real";
+  el.modeBadge.textContent = real ? "Modo Real" : "Simulação";
+  el.modeBadge.style.color = real ? "var(--orange)" : "#B9C3DD";
   el.modeHint.textContent = real
-    ? "Envia pelo Resend e marca Enviado na planilha, com data e hora."
-    : "Nada é enviado e nada é gravado na planilha. Use para conferir a lista e o assunto.";
+    ? "Dispara e-mails de verdade via Resend API e grava na planilha oficial com timestamp."
+    : "Modo seguro: nada é enviado nem gravado na planilha. Ideal para testar templates e fluxo.";
+  
   const n = pendingList().length;
   const interval = Math.max(0, parseFloat(el.interval.value) || 0);
   el.estimate.textContent = n
-    ? `${n} ${plural(n, "destinatário será processado", "destinatários serão processados")} (pendentes e com erro). Tempo estimado: ${fmtDur(n * interval)}.`
+    ? `${n} ${plural(n, "destinatário para envio", "destinatários para envio")}. Estimativa: ${fmtDur(n * interval)}.`
     : "Não há destinatários pendentes.";
   el.runBtn.className = "btn run" + (real ? " real" : "");
-  el.runBtn.textContent = real ? `Enviar ${n} ${plural(n, "e-mail", "e-mails")}` : `Simular envio para ${n}`;
+  el.runBtn.textContent = real ? `Enviar ${n} ${plural(n, "E-mail", "E-mails")}` : `Simular Disparo (${n})`;
   el.runBtn.disabled = state.running || n === 0;
   el.stopBtn.hidden = !state.running;
   el.refreshBtn.disabled = state.running;
@@ -594,7 +995,7 @@ function renderPanel() {
 
 function renderAll() { renderHero(); renderTable(); renderPanel(); }
 
-/* ---------- Envio ---------- */
+/* ---------- Envio e Processamento ---------- */
 function wait(ms) {
   return new Promise((res) => {
     const t = setTimeout(res, ms);
@@ -610,16 +1011,16 @@ async function processOne(r, { dryRun, subject }) {
     const res = await api.sendOne(r, { dryRun, subject });
     if (dryRun) {
       r.status = prev; r.sim = true;
-      log("info", `[DRY RUN] Simulando envio para ${r.email}`);
+      log("info", `[SIMULAÇÃO] Sucesso para ${r.email}`);
       return "ok";
     }
     r.status = "enviado";
     r.data_envio = (res && res.data_envio) || nowStamp();
-    log("ok", `E-mail enviado para ${r.email}${res && res.id ? ` | ID: ${res.id}` : ""}`);
+    log("ok", `E-mail entregue para ${r.email}${res && res.id ? ` [ID: ${res.id}]` : ""}`);
     return "ok";
   } catch (e) {
-    r.status = "erro"; r.erro = e.message || "Falha desconhecida";
-    log("err", `Falha ao processar ${r.email} (linha ${r.row}): ${r.erro}`);
+    r.status = "erro"; r.erro = e.message || "Falha no envio";
+    log("err", `Erro em ${r.email} (Linha ${r.row}): ${r.erro}`);
     return "err";
   } finally {
     updateCell(r);
@@ -636,25 +1037,30 @@ async function run(targets) {
   const interval = Math.max(0, parseFloat(el.interval.value) || 0);
 
   el.progress.hidden = false; el.barFill.style.width = "0%";
-  el.stopBtn.textContent = "Parar";
+  el.stopBtn.textContent = "Interromper";
   renderPanel(); renderTable();
-  log("info", dryRun ? `Modo teste: simulando ${targets.length} envio(s), sem enviar nada.` : `Iniciando envio para ${targets.length} destinatário(s).`);
+  
+  showToast(dryRun ? `Iniciando simulação de ${targets.length} envios` : `Disparando ${targets.length} e-mails...`, dryRun ? "warn" : "ok");
+  log("info", dryRun ? `Modo Simulação iniciado para ${targets.length} destinatários.` : `Iniciando envio real para ${targets.length} destinatários.`);
 
   let ok = 0, err = 0, done = 0;
   for (const r of targets) {
     if (state.stop) break;
     const res = await processOne(r, { dryRun, subject });
     done++; res === "err" ? err++ : ok++;
-    el.barFill.style.width = `${Math.round((done / targets.length) * 100)}%`;
+    const pct = Math.round((done / targets.length) * 100);
+    el.barFill.style.width = `${pct}%`;
+    el.progressPct.textContent = `${pct}%`;
     el.progressText.textContent = `${done} de ${targets.length} processados`;
     renderHero(); renderTable();
-    if (done < targets.length && interval > 0 && !state.stop) await wait((interval * 1000) / api.waitScale);
+    if (done < targets.length && interval > 0 && !state.stop) await wait(interval * 1000);
   }
 
   const stopped = state.stop && done < targets.length;
   const verb = dryRun ? plural(ok, "simulado", "simulados") : plural(ok, "enviado", "enviados");
-  log(stopped ? "warn" : "info", `${stopped ? "Execução interrompida. " : "Concluído. "}${ok} ${verb}, ${err} ${plural(err, "erro", "erros")}.`);
-  el.progressText.textContent = stopped ? `Interrompido após ${done} de ${targets.length}` : `Concluído: ${done} de ${targets.length}`;
+  log(stopped ? "warn" : "info", `${stopped ? "Interrompido. " : "Finalizado. "}${ok} ${verb}, ${err} ${plural(err, "erro", "erros")}.`);
+  showToast(stopped ? "Execução interrompida" : "Envios concluídos!", err > 0 ? "warn" : "ok");
+  
   state.running = false; state.wake = null;
   renderAll();
 }
@@ -663,118 +1069,289 @@ function requestRun(targets) {
   if (state.running || !targets.length) return;
   if (state.mode === "teste") return run(targets);
   const n = targets.length;
-  el.confirmTitle.textContent = `Enviar ${n} ${plural(n, "e-mail", "e-mails")} de verdade?`;
-  el.confirmBody.textContent = "Os e-mails saem pelo Resend e a planilha passa a mostrar Enviado. Não dá para desfazer.";
-  el.confirmYes.textContent = `Enviar ${n} ${plural(n, "e-mail", "e-mails")}`;
+  el.confirmTitle.textContent = `Confirmar disparo real para ${n} ${plural(n, "e-mail", "e-mails")}?`;
+  el.confirmBody.textContent = "Os e-mails serão enviados via API oficial do Resend e as linhas correspondentes da planilha serão marcadas como Enviado com a data/hora atual.";
+  el.confirmYes.textContent = `Sim, enviar ${n} ${plural(n, "e-mail", "e-mails")}`;
   el.confirm._targets = targets;
   el.confirm.showModal();
 }
 
-/* ---------- Prévia do e-mail ---------- */
-function previewHtml(nome) {
-  const n = esc(nome);
-  const card = (icon, title, text) => `<div class="card"><div class="ic">${icon}</div><b>${title}</b><p>${text}</p></div>`;
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-    body{margin:0;background:#F4F4F5;font-family:Inter,Arial,sans-serif;color:#2d2d2d;line-height:1.6}
-    .w{max-width:600px;margin:0 auto}
-    .top{text-align:center;font-size:12px;color:#888;padding:20px 0 8px}
-    .top a{color:#FF6B35}
-    .hd{background:#1A1A2E;border-radius:16px 16px 0 0;text-align:center;padding:30px 40px}
-    .hd h1{margin:0;color:#fff;font-size:28px;letter-spacing:2px}
-    .hd p{margin:4px 0 0;color:#A8B2C8;font-size:13px}
-    .hero{background:#16213E;text-align:center;padding:50px 40px}
-    .hero small{color:#FF6B35;font-weight:600;letter-spacing:3px;text-transform:uppercase;font-size:13px}
-    .hero h2{color:#fff;font-size:32px;line-height:1.3;margin:12px 0 8px}
-    .hero h2 span{color:#FF6B35}
-    .hero p{color:#C8D0E0;font-size:18px;margin:0}
-    .btn{display:inline-block;margin-top:28px;background:#FF6B35;color:#fff;font-weight:700;border-radius:8px;padding:16px 36px;text-decoration:none}
-    .body{background:#fff;padding:40px 40px 20px;font-size:17px;line-height:1.7;color:#333}
-    .body hr{border:0;border-top:1px solid #F0F0F0;margin:20px 0}
-    .body h3{margin:0;font-size:20px;color:#1A1A2E}
-    .cards{background:#fff;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 24px 40px}
-    .card{border:2px solid #F0F0F0;border-radius:12px;background:#FAFAFA;padding:20px;text-align:center}
-    .card .ic{font-size:28px}
-    .card b{display:block;color:#1A1A2E}
-    .card p{margin:6px 0 0;font-size:14px;line-height:1.5;color:#666}
-    .cta{background:#FF6B35;text-align:center;padding:40px}
-    .cta h2{margin:0;color:#fff;font-size:22px;line-height:1.4}
-    .cta p{color:#FFE5D9;font-size:15px;margin:8px 0 0}
-    .cta a{display:inline-block;margin-top:24px;background:#fff;color:#FF6B35;font-weight:700;border-radius:8px;padding:16px 36px;text-decoration:none}
-    .ft{background:#1A1A2E;border-radius:0 0 16px 16px;text-align:center;padding:30px 40px;color:#A8B2C8;font-size:13px}
-    .ft small{display:block;margin-top:12px;font-size:12px;color:#666}
-    .ft a{color:#9AA3BA}
-    @media (max-width:480px){.cards{grid-template-columns:1fr}.hero,.body,.cta,.hd,.ft{padding-left:24px;padding-right:24px}.hero h2{font-size:26px}}
-  </style></head><body><div class="w">
-    <div class="top">Não está vendo este e-mail corretamente? <a href="#">Clique aqui</a></div>
-    <div class="hd"><h1>⚖️ POLITIZE</h1><p>Educação Política para Todos</p></div>
-    <div class="hero"><small>Parceria Educacional</small><h2>Olá, <span>${n}</span>! 👋</h2><p>Transforme a forma como sua escola enxerga a política</p><a class="btn" href="#">Saiba Mais →</a></div>
-    <div class="body">Sabemos que falar sobre política nas escolas pode ser um desafio — por isso o <b>Politize</b> existe: para tornar esse assunto acessível, imparcial e engajante para jovens de todo o Brasil.<hr><h3>O que oferecemos à sua escola:</h3></div>
-    <div class="cards">
-      ${card("📚", "Conteúdo Gratuito", "Mais de 500 artigos e vídeos sobre política, direito e cidadania — sem custo para a escola.")}
-      ${card("🎯", "Conteúdo Imparcial", "Abordagem apartidária, baseada em fatos e pensamento crítico para os alunos.")}
-      ${card("🤝", "Parceria Educacional", "Suporte pedagógico e materiais adaptados para o currículo escolar.")}
-      ${card("🚀", "Impacto Real", "Mais de 2 milhões de jovens impactados em todo o Brasil.")}
-    </div>
-    <div class="cta"><h2>Leve o Politize para sua escola agora</h2><p>Entre em contato e descubra como podemos firmar uma parceria.</p><a href="#">Entrar em Contato</a></div>
-    <div class="ft">© 2026 Politize — Educação Política para Todos<br>Você está recebendo este e-mail porque sua escola pode se beneficiar de nossa parceria.<small><a href="#">Descadastrar</a> · <a href="#">Política de Privacidade</a></small></div>
-  </div></body></html>`;
+/* ---------- Navegação entre Abas ---------- */
+function switchTab(name) {
+  state.activeTab = name;
+  const tabs = [
+    { btn: el.tabBtnRecipients, panel: el.tabRecipients, key: "recipients" },
+    { btn: el.tabBtnAdd,        panel: el.tabAdd,        key: "add" },
+    { btn: el.tabBtnTemplate,   panel: el.tabTemplate,   key: "template" },
+    { btn: el.tabBtnPreview,    panel: el.tabPreview,    key: "preview" },
+  ];
+
+  tabs.forEach((t) => {
+    const isAct = t.key === name;
+    t.btn.setAttribute("aria-selected", isAct);
+    t.panel.hidden = !isAct;
+  });
+
+  if (name === "preview") renderPreview();
+  if (name === "template") {
+    loadTemplateSettings();
+    renderLiveEditorPreview();
+  }
 }
 
+/* ---------- Aba: Adicionar Destinatário ---------- */
+async function handleAddRecipient(e) {
+  e.preventDefault();
+  const nome = el.addName.value.trim();
+  const email = el.addEmail.value.trim().toLowerCase();
+
+  if (!nome || !email) {
+    showToast("Preencha o nome e o e-mail.", "warn");
+    return;
+  }
+
+  el.addSubmitBtn.disabled = true;
+  el.addSubmitBtn.textContent = "Adicionando...";
+
+  try {
+    const res = await api.addRecipient(nome, email);
+    const added = res.recipient;
+
+    // Insere no estado local
+    state.recipients.push({
+      row: added.row,
+      nome: added.nome,
+      email: added.email,
+      status: "pendente",
+      data_envio: "",
+      sim: false,
+      erro: "",
+    });
+
+    buildWaffle();
+    fillPreviewSelect();
+    renderAll();
+
+    showToast(`✓ ${nome} adicionado(a) à lista de disparos!`, "ok");
+    log("info", `Novo destinatário adicionado: ${nome} <${email}> (Linha ${added.row})`);
+
+    el.addName.value = "";
+    el.addEmail.value = "";
+
+    // Retorna para a tabela de destinatários
+    setTimeout(() => switchTab("recipients"), 800);
+  } catch (err) {
+    showToast(err.message, "err");
+    log("err", `Falha ao adicionar destinatário: ${err.message}`);
+  } finally {
+    el.addSubmitBtn.disabled = false;
+    el.addSubmitBtn.textContent = "+ Inserir na Lista de Disparos";
+  }
+}
+
+/* ---------- Aba: Editor de Mensagem e Display ---------- */
+async function loadTemplateSettings() {
+  try {
+    const cfg = await api.getTemplate();
+    el.tplFromName.value = cfg.from_name || "Politize";
+    el.tplFromEmail.value = cfg.from_email || "noreply@politize.com.br";
+    el.tplSubject.value = cfg.subject || DEFAULT_SUBJECT;
+    el.tplHeroSubtitle.value = cfg.hero_subtitle || "";
+    el.tplMainMessage.value = cfg.main_message || "";
+    el.tplButtonText.value = cfg.hero_button_text || "";
+    el.tplButtonUrl.value = cfg.hero_button_url || "";
+    el.tplCtaTitle.value = cfg.cta_title || "";
+    el.tplCtaBtnText.value = cfg.cta_button_text || "";
+    renderLiveEditorPreview();
+  } catch (e) {
+    logger.warning("Erro ao carregar configurações do template: " + e.message);
+  }
+}
+
+function renderLiveEditorPreview() {
+  const nomeExemplo = encodeURIComponent(el.tplFromName.value || "Educador(a)");
+  el.editorLiveFrame.src = `${API_BASE}/api/preview?nome=${nomeExemplo}&t=${Date.now()}`;
+}
+
+async function handleSaveTemplate(e) {
+  e.preventDefault();
+  el.saveTplBtn.disabled = true;
+  el.saveTplBtn.textContent = "Salvando...";
+
+  const payload = {
+    from_name: el.tplFromName.value.trim(),
+    from_email: el.tplFromEmail.value.trim(),
+    subject: el.tplSubject.value.trim(),
+    hero_subtitle: el.tplHeroSubtitle.value.trim(),
+    main_message: el.tplMainMessage.value.trim(),
+    hero_button_text: el.tplButtonText.value.trim(),
+    hero_button_url: el.tplButtonUrl.value.trim(),
+    cta_title: el.tplCtaTitle.value.trim(),
+    cta_button_text: el.tplCtaBtnText.value.trim(),
+  };
+
+  try {
+    await api.saveTemplate(payload);
+    // Atualiza assunto do painel lateral também
+    if (payload.subject) {
+      el.subject.value = payload.subject;
+    }
+    showToast("✓ Mensagem e Display do e-mail salvos com sucesso!", "ok");
+    renderLiveEditorPreview();
+    renderPreview();
+  } catch (err) {
+    showToast("Erro ao salvar: " + err.message, "err");
+  } finally {
+    el.saveTplBtn.disabled = false;
+    el.saveTplBtn.textContent = "💾 Salvar Mensagem";
+  }
+}
+
+async function handleResetTemplate() {
+  if (!confirm("Deseja restaurar as mensagens e o display para os valores originais do Politize?")) return;
+  el.resetTplBtn.disabled = true;
+  try {
+    await api.resetTemplate();
+    await loadTemplateSettings();
+    showToast("Modelo restaurado para o padrão original!");
+    renderPreview();
+  } catch (err) {
+    showToast("Erro ao restaurar: " + err.message, "err");
+  } finally {
+    el.resetTplBtn.disabled = false;
+  }
+}
+
+/* ---------- Prévia Oficial (MJML) ---------- */
 function renderPreview() {
-  const r = state.recipients[+el.previewWho.value] || { nome: "" };
-  el.previewFrame.srcdoc = previewHtml(r.nome);
+  const r = state.recipients[+el.previewWho.value] || { nome: "Educador(a)" };
+  const nomeParam = encodeURIComponent(r.nome || "Educador(a)");
+  el.previewFrame.src = `${API_BASE}/api/preview?nome=${nomeParam}&t=${Date.now()}`;
   el.previewFrame.style.width = state.previewWidth === "mobile" ? "375px" : "640px";
 }
 
 function fillPreviewSelect() {
-  el.previewWho.innerHTML = state.recipients.map((r, i) => `<option value="${i}">${esc(r.nome)}</option>`).join("");
+  el.previewWho.innerHTML = state.recipients.map((r, i) => `<option value="${i}">${esc(r.nome)} (${esc(r.email)})</option>`).join("");
 }
 
-function switchTab(name) {
-  const rec = name === "recipients";
-  el.tabBtnRecipients.setAttribute("aria-selected", rec);
-  el.tabBtnPreview.setAttribute("aria-selected", !rec);
-  el.tabRecipients.hidden = !rec;
-  el.tabPreview.hidden = rec;
-  if (!rec) renderPreview();
+/* ---------- Diagnóstico do Sistema ---------- */
+async function checkSystemHealth() {
+  try {
+    const h = await api.getHealth();
+    state.systemStatus = h;
+    
+    const sheetsOk = h.services.google_sheets.configured;
+    const resendOk = h.services.resend.configured;
+    
+    if (sheetsOk && resendOk) {
+      el.statusPill.className = "status-pill online";
+      el.statusLabel.textContent = "Conectado";
+      el.addDestNotice.textContent = "Destinatários são sincronizados diretamente na sua planilha oficial do Google Sheets.";
+    } else {
+      el.statusPill.className = "status-pill demo";
+      el.statusLabel.textContent = "Modo Demonstração";
+      el.addDestNotice.textContent = "Modo demonstração ativo: os novos destinatários entram na lista da sessão atual.";
+    }
+  } catch (e) {
+    el.statusPill.className = "status-pill offline";
+    el.statusLabel.textContent = "Backend Offline";
+  }
 }
 
-/* ---------- Carga de dados ---------- */
+function openDiagModal() {
+  const h = state.systemStatus;
+  if (!h) {
+    el.diagList.innerHTML = `<li class="diag-item"><span class="diag-label">Backend</span><span class="diag-badge err">Offline</span></li>`;
+    el.diagModal.showModal();
+    return;
+  }
+  const gs = h.services.google_sheets;
+  const res = h.services.resend;
+  const tpl = h.services.template;
+
+  el.diagList.innerHTML = `
+    <li class="diag-item">
+      <div>
+        <div class="diag-label">Servidor Backend (FastAPI)</div>
+        <div class="diag-sub">Versão ${h.version} • Ativo em ${API_BASE}</div>
+      </div>
+      <span class="diag-badge ok">Online</span>
+    </li>
+    <li class="diag-item">
+      <div>
+        <div class="diag-label">Google Sheets</div>
+        <div class="diag-sub">${gs.credentials_found ? `Credenciais OK (${gs.sheet_name})` : "Arquivo credentials.json não encontrado"}</div>
+      </div>
+      <span class="diag-badge ${gs.configured ? 'ok' : 'warn'}">${gs.configured ? 'Conectado' : 'Demonstração'}</span>
+    </li>
+    <li class="diag-item">
+      <div>
+        <div class="diag-label">Resend API</div>
+        <div class="diag-sub">Remetente: ${esc(res.from_email)}</div>
+      </div>
+      <span class="diag-badge ${res.configured ? 'ok' : 'warn'}">${res.configured ? 'Pronto' : 'Chave Pendente'}</span>
+    </li>
+    <li class="diag-item">
+      <div>
+        <div class="diag-label">Template & Display</div>
+        <div class="diag-sub">${tpl.type} carregado com sucesso</div>
+      </div>
+      <span class="diag-badge ok">Carregado</span>
+    </li>
+  `;
+  el.diagModal.showModal();
+}
+
+/* ---------- Carga de Dados ---------- */
 function normalize(list) {
   return list.map((d) => ({
-    row: d.row, nome: d.nome || "", email: d.email,
+    row: d.row,
+    nome: d.nome || "",
+    email: d.email,
     status: String(d.status || "").toLowerCase() === "enviado" ? "enviado" : "pendente",
-    data_envio: d.data_envio || "", sim: false, erro: "",
+    data_envio: d.data_envio || "",
+    sim: false,
+    erro: "",
   }));
 }
 
 async function load() {
   el.headline.textContent = "Carregando destinatários…";
   el.subline.textContent = "";
+  await checkSystemHealth();
   try {
-    state.recipients = normalize(await api.listRecipients());
+    const raw = await api.listRecipients();
+    state.recipients = normalize(raw);
   } catch (e) {
-    el.headline.textContent = "Não foi possível carregar a planilha.";
-    el.tbody.innerHTML = `<tr><td colspan="5"><div class="error-box"><strong>${esc(e.message)}</strong>Confira se o backend está rodando em ${esc(API_BASE || "—")} e tente de novo.<br><button class="link" type="button" id="retryBtn">Tentar de novo</button></div></td></tr>`;
+    el.headline.textContent = "Não foi possível carregar a lista.";
+    el.tbody.innerHTML = `<tr><td colspan="5"><div style="text-align:center;padding:36px;color:var(--muted);"><strong style="display:block;color:var(--red);margin-bottom:6px;">Falha de comunicação com o servidor</strong>${esc(e.message)}<br><button class="link" type="button" id="retryBtn" style="margin-top:12px;">Tentar novamente</button></div></td></tr>`;
     el.pager.innerHTML = ""; el.legend.innerHTML = ""; el.waffle.innerHTML = "";
-    $("retryBtn").addEventListener("click", load);
+    $("retryBtn")?.addEventListener("click", load);
     return;
   }
   buildWaffle();
   fillPreviewSelect();
   state.page = 1;
   renderAll();
-  if (!el.tabPreview.hidden) renderPreview();
+  if (state.activeTab === "preview") renderPreview();
 }
 
-/* ---------- Eventos ---------- */
+/* ---------- Event Listeners ---------- */
 document.querySelectorAll('input[name="mode"]').forEach((i) => i.addEventListener("change", () => { state.mode = i.value; renderPanel(); }));
 el.interval.addEventListener("input", renderPanel);
 el.runBtn.addEventListener("click", () => requestRun(pendingList()));
-el.stopBtn.addEventListener("click", () => { state.stop = true; el.stopBtn.textContent = "Parando…"; if (state.wake) state.wake(); });
+el.stopBtn.addEventListener("click", () => { state.stop = true; el.stopBtn.textContent = "Interrompendo…"; if (state.wake) state.wake(); });
 el.confirmNo.addEventListener("click", () => el.confirm.close());
 el.confirmYes.addEventListener("click", () => { const t = el.confirm._targets; el.confirm.close(); run(t); });
-el.refreshBtn.addEventListener("click", load);
+el.refreshBtn.addEventListener("click", () => { showToast("Sincronizando com a planilha...", "warn"); load(); });
+el.diagBtn.addEventListener("click", openDiagModal);
+el.diagClose.addEventListener("click", () => el.diagModal.close());
+
+el.clearLogsBtn.addEventListener("click", resetLog);
+el.copyLogsBtn.addEventListener("click", () => {
+  const texts = Array.from(el.log.querySelectorAll("li")).map((l) => l.innerText).join("\n");
+  navigator.clipboard.writeText(texts).then(() => showToast("Logs copiados para a área de transferência!"));
+});
 
 el.legend.addEventListener("click", (e) => {
   const b = e.target.closest("[data-f]"); if (!b) return;
@@ -799,19 +1376,32 @@ el.waffle.addEventListener("click", (e) => {
   switchTab("recipients"); renderHero(); renderTable();
   el.tabRecipients.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 });
+
+/* Eventos das Abas */
 el.tabBtnRecipients.addEventListener("click", () => switchTab("recipients"));
+el.tabBtnAdd.addEventListener("click", () => switchTab("add"));
+el.tabBtnTemplate.addEventListener("click", () => switchTab("template"));
 el.tabBtnPreview.addEventListener("click", () => switchTab("preview"));
+
+/* Formulário de Adição */
+el.addForm.addEventListener("submit", handleAddRecipient);
+
+/* Formulário do Template */
+el.templateForm.addEventListener("submit", handleSaveTemplate);
+el.resetTplBtn.addEventListener("click", handleResetTemplate);
+el.livePreviewRefreshBtn.addEventListener("click", renderLiveEditorPreview);
+
+/* Prévia Oficial */
 el.previewWho.addEventListener("change", renderPreview);
+el.refreshPreviewBtn.addEventListener("click", renderPreview);
 document.querySelectorAll(".seg2 button").forEach((b) => b.addEventListener("click", () => {
   state.previewWidth = b.dataset.w;
   document.querySelectorAll(".seg2 button").forEach((x) => x.setAttribute("aria-pressed", x === b));
   renderPreview();
 }));
 
-/* ---------- Início ---------- */
+/* ---------- Inicialização ---------- */
 el.subject.value = DEFAULT_SUBJECT;
-el.sourceInfo.textContent = `Aba: ${SHEET_LABEL}`;
-el.demoBar.hidden = api.live;
 resetLog();
 renderPanel();
 load();

@@ -24,7 +24,6 @@ SCOPES = [
 ]
 
 # Mapeamento das colunas esperadas na planilha (1-indexado para o gspread)
-# Adapte os números se a ordem das colunas na sua planilha for diferente.
 COL_NOME        = 1  # Coluna A
 COL_EMAIL       = 2  # Coluna B
 COL_STATUS      = 3  # Coluna C
@@ -54,6 +53,23 @@ def _get_worksheet(credentials_path: str, spreadsheet_id: str, sheet_name: str):
         raise ValueError(f"Aba '{sheet_name}' não encontrada na planilha {spreadsheet_id}")
 
 
+def _normalize_key(key: str) -> str:
+    """Normaliza nomes de colunas removendo acentos, espaços e caracteres especiais."""
+    import unicodedata
+    nfkd = unicodedata.normalize("NFKD", key)
+    return "".join(c for c in nfkd if not unicodedata.combining(c)).strip().lower().replace("-", "").replace("_", "").replace(" ", "")
+
+
+def _find_field(record: dict, *candidates: str) -> str:
+    """Busca o valor no dicionário testando múltiplos nomes possíveis de coluna de forma flexível."""
+    norm_map = {_normalize_key(k): str(v) for k, v in record.items()}
+    for candidate in candidates:
+        norm_cand = _normalize_key(candidate)
+        if norm_cand in norm_map:
+            return norm_map[norm_cand]
+    return ""
+
+
 def get_recipients(credentials_path: str, spreadsheet_id: str, sheet_name: str) -> list[dict]:
     """
     Lê todos os destinatários da planilha e retorna uma lista de dicionários.
@@ -75,10 +91,10 @@ def get_recipients(credentials_path: str, spreadsheet_id: str, sheet_name: str) 
 
     recipients = []
     for idx, record in enumerate(records, start=2):  # start=2 pois linha 1 é o cabeçalho
-        nome       = str(record.get("Nome", "")).strip()
-        email      = str(record.get("Email", "")).strip()
-        status     = str(record.get("Status", "")).strip()
-        data_envio = str(record.get("Data de Envio", "")).strip()
+        nome       = _find_field(record, "Nome", "name", "destinatario", "contato").strip()
+        email      = _find_field(record, "Email", "e-mail", "mail", "correio").strip()
+        status     = _find_field(record, "Status", "situacao", "estado").strip()
+        data_envio = _find_field(record, "Data de Envio", "Data de envio", "data", "data_envio", "sent_at").strip()
 
         # Pula linhas sem e-mail (evita processar linhas vazias)
         if not email:
@@ -97,12 +113,13 @@ def get_recipients(credentials_path: str, spreadsheet_id: str, sheet_name: str) 
     return recipients
 
 
-def get_sent_emails(credentials_path: str, spreadsheet_id: str, sheet_name: str) -> set[str]:
+def get_sent_emails(credentials_path: str, spreadsheet_id: str, sheet_name: str, recipients: Optional[list[dict]] = None) -> set[str]:
     """
     Retorna um conjunto (set) com todos os e-mails cujo status é 'Enviado'.
-    Usado para verificação rápida de duplicatas antes do envio.
+    Se `recipients` for fornecido, reutiliza os dados sem fazer nova chamada de rede.
     """
-    recipients = get_recipients(credentials_path, spreadsheet_id, sheet_name)
+    if recipients is None:
+        recipients = get_recipients(credentials_path, spreadsheet_id, sheet_name)
     sent = {r["email"].lower() for r in recipients if r["status"].lower() == "enviado"}
     logger.info(f"{len(sent)} e-mail(s) já marcado(s) como enviado na planilha.")
     return sent
@@ -129,9 +146,36 @@ def mark_as_sent(
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        # Atualiza coluna Status (C) e Data de Envio (D) na mesma chamada
+        # Atualiza coluna Status (C) e Data de Envio (D)
         worksheet.update_cell(row, COL_STATUS, "Enviado")
         worksheet.update_cell(row, COL_DATA_ENVIO, timestamp)
         logger.info(f"Linha {row} atualizada: Status='Enviado', Data='{timestamp}'")
     except gspread.exceptions.APIError as e:
         raise RuntimeError(f"Falha ao atualizar linha {row} no Google Sheets: {e}")
+
+
+def add_recipient(
+    credentials_path: str,
+    spreadsheet_id: str,
+    sheet_name: str,
+    nome: str,
+    email: str,
+) -> dict:
+    """
+    Adiciona um novo destinatário na próxima linha disponível da planilha Google Sheets.
+    Retorna o registro adicionado com o número da linha correspondente.
+    """
+    worksheet = _get_worksheet(credentials_path, spreadsheet_id, sheet_name)
+    all_values = worksheet.get_all_values()
+    next_row = len(all_values) + 1
+
+    # Insere [Nome, Email, Status (vazio), Data de Envio (vazia)]
+    worksheet.append_row([nome.strip(), email.strip(), "", ""])
+    logger.info(f"Destinatário adicionado no Google Sheets (linha {next_row}): {nome} <{email}>")
+    return {
+        "row": next_row,
+        "nome": nome.strip(),
+        "email": email.strip(),
+        "status": "",
+        "data_envio": "",
+    }
