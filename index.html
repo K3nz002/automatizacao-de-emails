@@ -412,11 +412,105 @@
   @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
 
   /* ---------- Responsivo ---------- */
+  /* Botão da Planilha Google Sheets */
+  .btn-sheet {
+    background: #DDF1EA; border: 1.5px solid #17795E; color: #17795E;
+    border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 700;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    transition: all .2s; cursor: pointer;
+  }
+  .btn-sheet:hover { background: #17795E; color: #ffffff; }
+
+  /* Badge de Descadastrado e Empresa */
+  .st-descadastrado { background: #FEE2E2; color: #991B1B; border: 1px solid rgba(153,27,27,0.2); }
+  td.emp { color: var(--ink); font-weight: 500; }
+  td.emp small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* Construtor de Layout Drag-and-Drop */
+  .builder-container {
+    display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    min-height: 750px;
+  }
+  .builder-editor {
+    padding: 24px; border-right: 1px solid var(--line); background: #FAFBFD;
+    max-height: 850px; overflow-y: auto;
+  }
+  .builder-preview-stage {
+    padding: 24px 20px; background: #E3E7EF; display: flex; flex-direction: column; align-items: center;
+  }
+  .builder-topbar {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
+  }
+  .palette-label {
+    font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .palette {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+    background: #ffffff; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line);
+  }
+  .btn-palette {
+    background: #FAFBFD; border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--ink);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
+  }
+  .btn-palette:hover { background: #FFF3EB; border-color: var(--orange); color: var(--orange); transform: translateY(-1px); }
+
+  .canvas-header-desc {
+    font-size: 13.5px; color: var(--muted); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .canvas-wrap {
+    display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; min-height: 150px;
+  }
+  .block-item {
+    background: #ffffff; border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 12px 16px; box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s, transform .15s;
+    user-select: none; position: relative;
+  }
+  .block-item:hover { border-color: var(--ink); box-shadow: 0 4px 12px rgba(15,24,48,0.08); }
+  .block-item.dragging { opacity: 0.35; border-color: var(--orange); background: #FFF9F6; transform: scale(0.98); }
+  .block-item.drag-over-top { border-top: 3px solid var(--orange) !important; }
+  .block-item.drag-over-bottom { border-bottom: 3px solid var(--orange) !important; }
+
+  .block-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: grab;
+  }
+  .block-head:active { cursor: grabbing; }
+  .block-title-grp { display: flex; align-items: center; gap: 10px; }
+  .block-handle { color: var(--slate); font-size: 18px; line-height: 1; cursor: grab; padding: 2px 4px; }
+  .block-icon { font-size: 16px; }
+  .block-name { font-weight: 700; font-size: 14px; color: var(--ink); }
+  .block-type-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: var(--paper); color: var(--muted); text-transform: uppercase; }
+
+  .block-actions { display: flex; align-items: center; gap: 4px; }
+  .btn-blk {
+    background: transparent; border: 1px solid var(--line); border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--muted);
+    transition: all .15s;
+  }
+  .btn-blk:hover { background: var(--paper); color: var(--ink); border-color: var(--ink); }
+  .btn-blk.del:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+  .btn-blk.edit[aria-expanded="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .block-body {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .block-body[hidden] { display: none; }
+  .blk-field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+  .blk-field input, .blk-field textarea, .blk-field select {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 7px; padding: 8px 10px; font-size: 13.5px;
+    background: #fff; box-sizing: border-box; font-family: inherit;
+  }
+  .blk-field textarea { resize: vertical; min-height: 60px; line-height: 1.45; }
+  .blk-field input:focus, .blk-field textarea:focus { outline: none; border-color: var(--orange); }
+  .blk-field small { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: block; }
+
   @media (max-width: 980px) {
     .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hero" "panel" "list"; row-gap: 28px; }
     .panel { position: static; }
-    .template-editor-grid { grid-template-columns: 1fr; }
-    .editor-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+    .template-editor-grid, .builder-container { grid-template-columns: 1fr; }
+    .editor-sidebar, .builder-editor { border-right: 0; border-bottom: 1px solid var(--line); }
   }
   @media (max-width: 560px) {
     :root { --cw: 22px; --ch: 16px; }
@@ -447,6 +541,10 @@
       </div>
     </div>
     <div class="top-actions">
+      <a class="btn-sheet" id="openSheetTopBtn" target="_blank" rel="noopener noreferrer" style="display:none;" title="Abrir Planilha no Google Sheets">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Planilha Google Sheets
+      </a>
       <div class="status-pill" id="statusPill" title="Verificando backend...">
         <span class="status-dot"></span>
         <span id="statusLabel">Conectando...</span>
@@ -537,6 +635,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
         Adicionar E-mail
       </button>
+      <button class="tab" role="tab" id="tabBtnBuilder" aria-controls="tabBuilder" aria-selected="false" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Construtor de Layout
+      </button>
       <button class="tab" role="tab" id="tabBtnTemplate" aria-controls="tabTemplate" aria-selected="false" type="button">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         Mensagem & Display
@@ -553,8 +655,12 @@
         <label class="search">
           <span class="sr">Buscar por nome ou e-mail</span>
           <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="search" id="search" placeholder="Buscar por nome ou e-mail..." autocomplete="off">
+          <input type="search" id="search" placeholder="Buscar por nome, e-mail ou empresa..." autocomplete="off">
         </label>
+        <a class="btn-sheet" id="openSheetToolbarBtn" target="_blank" rel="noopener noreferrer" style="display:none;" title="Abrir Planilha de Destinatários">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Abrir Planilha Google Sheets ↗
+        </a>
         <button class="link" id="refreshBtn" type="button">Sincronizar Planilha</button>
       </div>
       <div class="table-wrap">
@@ -563,6 +669,7 @@
             <tr>
               <th scope="col">Nome</th>
               <th scope="col">E-mail</th>
+              <th scope="col">Empresa / Escola</th>
               <th scope="col">Status</th>
               <th scope="col">Data de Envio</th>
               <th scope="col" style="text-align:right;"><span class="sr">Ações</span></th>
@@ -579,19 +686,31 @@
       <div class="add-container">
         <div class="add-card">
           <h3>Adicionar Novo Destinatário</h3>
-          <p>Cadastre um novo educador ou escola para entrar imediatamente no mapa de envelopes e na fila de disparos.</p>
+          <p>Cadastre um novo educador ou escola com nome e e-mail da empresa para entrar imediatamente na lista de disparos.</p>
           
           <form id="addForm">
             <div class="form-field">
-              <label for="addName">Nome Completo</label>
+              <label for="addName">Nome Completo do Destinatário</label>
               <input type="text" id="addName" placeholder="Ex: Prof. Marcos Souza" required autocomplete="off">
               <small>Utilizado para personalizar a saudação "Olá, {Nome}!" no e-mail.</small>
             </div>
 
             <div class="form-field">
-              <label for="addEmail">Endereço de E-mail</label>
+              <label for="addEmail">Endereço de E-mail de Envio</label>
               <input type="email" id="addEmail" placeholder="Ex: marcos.souza@escola.edu.br" required autocomplete="off">
-              <small>Endereço eletrônico de destino verificado.</small>
+              <small>Endereço de e-mail verificado onde a mensagem será entregue.</small>
+            </div>
+
+            <div class="form-field">
+              <label for="addEmpresa">Nome da Empresa ou Escola</label>
+              <input type="text" id="addEmpresa" placeholder="Ex: Escola Estadual Darcy Ribeiro" autocomplete="off">
+              <small>Nome da organização ou escola (disponível na tag {{empresa}}).</small>
+            </div>
+
+            <div class="form-field">
+              <label for="addEmailEmpresa">E-mail da Empresa / Institucional</label>
+              <input type="email" id="addEmailEmpresa" placeholder="Ex: contato@escola-darcy.sp.gov.br" autocomplete="off">
+              <small>E-mail corporativo da empresa ou secretaria da instituição.</small>
             </div>
 
             <div class="dest-hint">
@@ -603,6 +722,59 @@
               + Inserir na Lista de Disparos
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL CONSTRUTOR DE LAYOUT (DRAG AND DROP) -->
+    <div id="tabBuilder" role="tabpanel" aria-labelledby="tabBtnBuilder" hidden>
+      <div class="builder-container">
+        <!-- Coluna de Blocos e Montagem -->
+        <div class="builder-editor">
+          <div class="builder-topbar">
+            <div>
+              <h3 style="margin:0 0 4px;font-size:20px;font-family:var(--display);color:var(--ink);">Construtor Visual de Layout</h3>
+              <p style="margin:0;font-size:13.5px;color:var(--muted);">Arraste os blocos para reorganizar a ordem das seções do e-mail. Adicione novos blocos e personalize os textos.</p>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn run real" id="saveLayoutBtn" type="button" style="padding:9px 18px;font-size:14px;border-radius:8px;">💾 Salvar Layout</button>
+              <button class="btn-diag" id="resetLayoutBtn" type="button" style="padding:9px 14px;font-size:13px;">↺ Restaurar Padrão</button>
+            </div>
+          </div>
+
+          <!-- Paleta de Inserção de Blocos -->
+          <div class="palette-label">+ Inserir Novo Bloco no Layout:</div>
+          <div class="palette">
+            <button class="btn-palette" type="button" data-add-type="header">🏷️ Cabeçalho</button>
+            <button class="btn-palette" type="button" data-add-type="hero">🌟 Banner Hero</button>
+            <button class="btn-palette" type="button" data-add-type="text">📝 Texto</button>
+            <button class="btn-palette" type="button" data-add-type="cards">🗂️ Cards Benefícios</button>
+            <button class="btn-palette" type="button" data-add-type="highlight">💡 Destaque</button>
+            <button class="btn-palette" type="button" data-add-type="cta">📢 Chamada (CTA)</button>
+            <button class="btn-palette" type="button" data-add-type="button">🔘 Botão</button>
+            <button class="btn-palette" type="button" data-add-type="divider">➖ Divisor</button>
+            <button class="btn-palette" type="button" data-add-type="image">🖼️ Imagem</button>
+            <button class="btn-palette" type="button" data-add-type="footer">📋 Rodapé</button>
+          </div>
+
+          <!-- Canvas / Lista com Arrastamento -->
+          <div class="canvas-header-desc">
+            <span><b>Estrutura do E-mail</b> (Arraste para reordenar a sequência de envio):</span>
+            <span id="blockCountBadge" style="font-size:12px;color:var(--muted);font-weight:600;"></span>
+          </div>
+          <div class="canvas-wrap" id="canvasList" role="list" aria-label="Lista de blocos de e-mail arrastáveis"></div>
+        </div>
+
+        <!-- Coluna de Prévia ao Vivo do Layout -->
+        <div class="builder-preview-stage">
+          <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+            <div style="font-weight:700;font-size:13px;color:var(--ink);text-transform:uppercase;letter-spacing:0.5px;">Display do Layout em Tempo Real</div>
+            <div class="seg2" role="group" aria-label="Tamanho da visualização">
+              <button type="button" id="btnBuilderDesk" aria-pressed="true">Desktop (600px)</button>
+              <button type="button" id="btnBuilderMob" aria-pressed="false">Mobile (375px)</button>
+            </div>
+          </div>
+          <iframe id="builderPreviewFrame" title="Prévia do layout do e-mail construído" sandbox="allow-same-origin allow-scripts" style="width:100%;max-width:600px;height:720px;border:0;background:#ffffff;border-radius:12px;box-shadow:var(--shadow-sm);transition:width .2s;"></iframe>
         </div>
       </div>
     </div>
@@ -804,10 +976,10 @@ const api = {
     if (Array.isArray(res)) return res;
     return [];
   },
-  async addRecipient(nome, email) {
+  async addRecipient(nome, email, empresa = "", email_empresa = "") {
     return this.call("/api/recipients", {
       method: "POST",
-      body: JSON.stringify({ nome, email })
+      body: JSON.stringify({ nome, email, empresa, email_empresa })
     });
   },
   async getTemplate() {
@@ -837,31 +1009,117 @@ const api = {
   }
 };
 
+/* ---------- Blocos Padrão do Construtor de Layout ---------- */
+const DEFAULT_BUILDER_BLOCKS = [
+  {
+    id: "block_header",
+    type: "header",
+    name: "Cabeçalho com Logo",
+    title: "⚖️ POLITIZE",
+    subtitle: "Educação Política para Todos",
+    bg_color: "#1A1A2E",
+    text_color: "#FFFFFF",
+  },
+  {
+    id: "block_hero",
+    type: "hero",
+    name: "Banner Hero Principal",
+    tag: "Parceria Educacional",
+    title: "Olá, {{nome}}! 👋",
+    subtitle: "Transforme a forma como sua escola enxerga a política",
+    button_text: "Saiba Mais →",
+    button_url: "https://www.politize.com.br",
+    bg_color: "#16213E",
+  },
+  {
+    id: "block_text",
+    type: "text",
+    name: "Mensagem Principal",
+    section_title: "O que oferecemos à sua escola:",
+    content: "Sabemos que falar sobre política nas escolas pode ser um desafio — por isso o Politize existe: para tornar esse assunto acessível, imparcial e engajante para jovens de todo o Brasil.",
+    align: "left",
+  },
+  {
+    id: "block_cards",
+    type: "cards",
+    name: "Cards de Benefícios",
+    items: [
+      { icon: "📚", title: "Conteúdo Gratuito", desc: "Mais de 500 artigos e vídeos sobre política, direito e cidadania — sem custo para a escola." },
+      { icon: "🎯", title: "Conteúdo Imparcial", desc: "Abordagem apartidária, baseada em fatos e pensamento crítico para os alunos." },
+      { icon: "🤝", title: "Parceria Educacional", desc: "Suporte pedagógico e materiais adaptados para o currículo escolar." },
+      { icon: "🚀", title: "Impacto Real", desc: "Mais de 2 milhões de jovens impactados em todo o Brasil." }
+    ]
+  },
+  {
+    id: "block_cta",
+    type: "cta",
+    name: "Chamada para Ação (CTA)",
+    title: "Leve o Politize para sua escola agora",
+    subtitle: "Entre em contato e descubra como podemos firmar uma parceria.",
+    button_text: "Entrar em Contato",
+    button_url: "mailto:parceria@politize.com.br",
+    bg_color: "#FF6B35",
+  },
+  {
+    id: "block_footer",
+    type: "footer",
+    name: "Rodapé com Descadastro",
+    text: "© 2026 Politize — Educação Política para Todos<br>Você está recebendo este e-mail porque sua instituição pode se beneficiar de nossa parceria.",
+    unsubscribe_text: "Descadastrar",
+    privacy_url: "https://www.politize.com.br/privacidade",
+  }
+];
+
 /* ---------- Estado Global ---------- */
 const state = {
   recipients: [], filter: "todos", query: "", page: 1,
   mode: "teste", running: false, stop: false, wake: null, previewWidth: "desktop",
   systemStatus: null, activeTab: "recipients",
+  blocks: [], draggedBlockId: null, builderWidth: "desktop",
 };
 
 const el = {};
 ["headline", "subline", "waffle", "waffleStats", "legend", "modeHint", "modeBadge", "subject", "interval", "estimate",
  "runBtn", "stopBtn", "progress", "barFill", "progressText", "progressPct", "log", "copyLogsBtn", "clearLogsBtn",
  "tbody", "pager", "search", "refreshBtn", "statusPill", "statusLabel", "diagBtn", "diagModal", "diagList", "diagClose",
- "bannerAlert", "bannerText", "tabBtnRecipients", "tabBtnAdd", "tabBtnTemplate", "tabBtnPreview",
- "tabRecipients", "tabAdd", "tabTemplate", "tabPreview",
- "addForm", "addName", "addEmail", "addSubmitBtn", "addDestNotice",
+ "bannerAlert", "bannerText", "openSheetTopBtn", "openSheetToolbarBtn",
+ "tabBtnRecipients", "tabBtnAdd", "tabBtnBuilder", "tabBtnTemplate", "tabBtnPreview",
+ "tabRecipients", "tabAdd", "tabBuilder", "tabTemplate", "tabPreview",
+ "addForm", "addName", "addEmail", "addEmpresa", "addEmailEmpresa", "addSubmitBtn", "addDestNotice",
+ "canvasList", "blockCountBadge", "builderPreviewFrame", "saveLayoutBtn", "resetLayoutBtn", "btnBuilderDesk", "btnBuilderMob",
  "templateForm", "tplFromName", "tplFromEmail", "tplSubject", "tplHeroSubtitle", "tplMainMessage",
  "tplButtonText", "tplButtonUrl", "tplCtaTitle", "tplCtaBtnText", "saveTplBtn", "resetTplBtn",
  "editorLiveFrame", "livePreviewRefreshBtn",
  "previewWho", "previewFrame", "refreshPreviewBtn", "confirm", "confirmTitle", "confirmBody", "confirmNo", "confirmYes"].forEach((id) => (el[id] = $(id)));
 
-const keyOf = (r) => (r.status === "enviado" ? "enviado" : r.status === "erro" ? "erro" : "pendente");
-const labelOf = (r) => ({ enviado: "Enviado", erro: "Erro", enviando: "Enviando" }[r.status] || "Pendente");
-const pendingList = () => state.recipients.filter((r) => r.status !== "enviado");
+const keyOf = (r) => {
+  const s = String(r.status || "").toLowerCase();
+  if (s === "enviado") return "enviado";
+  if (s === "descadastrado" || s === "optout" || s === "opt-out") return "descadastrado";
+  if (s === "erro") return "erro";
+  return "pendente";
+};
+
+const labelOf = (r) => {
+  const s = String(r.status || "").toLowerCase();
+  if (s === "enviado") return "Enviado";
+  if (s === "descadastrado" || s === "optout" || s === "opt-out") return "Descadastrado";
+  if (s === "erro") return "Erro";
+  if (s === "enviando") return "Enviando";
+  return "Pendente";
+};
+
+const pendingList = () => state.recipients.filter((r) => {
+  const k = keyOf(r);
+  return k !== "enviado" && k !== "descadastrado";
+});
+
 const counts = () => {
-  const c = { todos: state.recipients.length, enviado: 0, pendente: 0, erro: 0 };
-  state.recipients.forEach((r) => c[keyOf(r)]++);
+  const c = { todos: state.recipients.length, enviado: 0, pendente: 0, descadastrado: 0, erro: 0 };
+  state.recipients.forEach((r) => {
+    const k = keyOf(r);
+    c[k] = (c[k] || 0) + 1;
+  });
   return c;
 };
 
@@ -887,8 +1145,10 @@ function resetLog() {
 
 /* ---------- Mosaico de Envelopes ---------- */
 function cellClass(r) {
-  if (r.status === "enviado") return "cell is-sent";
-  if (r.status === "erro") return "cell is-error";
+  const k = keyOf(r);
+  if (k === "enviado") return "cell is-sent";
+  if (k === "descadastrado") return "cell is-error";
+  if (k === "erro") return "cell is-error";
   if (r.status === "enviando") return "cell is-sending";
   return r.sim ? "cell is-sim" : "cell";
 }
@@ -917,18 +1177,25 @@ function renderHero() {
   const pend = c.pendente + c.erro;
   const total = c.todos;
   if (total === 0) el.headline.textContent = "Nenhum destinatário disponível.";
-  else if (pend === 0) el.headline.textContent = "Todos os destinatários já receberam o e-mail.";
+  else if (pend === 0) el.headline.textContent = "Todos os destinatários ativos já receberam o e-mail.";
   else el.headline.textContent = `${pend} ${plural(pend, "destinatário aguarda", "destinatários aguardam")} o e-mail.`;
 
   const last = state.recipients.map((r) => r.data_envio).filter(Boolean).sort().pop();
   let sub = `${c.enviado} de ${total} já enviados.`;
+  if (c.descadastrado) sub += ` ${c.descadastrado} descadastrado(s).`;
   if (last) { const f = fmtDate(last).split(" "); sub += ` Último envio em ${f[0]} às ${f[1]}.`; }
   if (c.erro) sub += ` ${c.erro} falhou nesta sessão.`;
   el.subline.textContent = sub;
 
-  el.waffle.setAttribute("aria-label", `${c.enviado} enviados, ${c.pendente} pendentes e ${c.erro} com erro`);
+  el.waffle.setAttribute("aria-label", `${c.enviado} enviados, ${c.pendente} pendentes, ${c.descadastrado} descadastrados`);
 
-  const chips = [["todos", "Todos", ""], ["enviado", "Enviado", "is-sent"], ["pendente", "Pendente", ""], ["erro", "Erro", "is-error"]];
+  const chips = [
+    ["todos", "Todos", ""],
+    ["enviado", "Enviado", "is-sent"],
+    ["pendente", "Pendente", ""],
+    ["descadastrado", "Descadastrado", "is-error"],
+    ["erro", "Erro", "is-error"]
+  ];
   el.legend.innerHTML = chips.map(([k, label, cls]) =>
     `<button type="button" class="chip" data-f="${k}" aria-pressed="${state.filter === k}"><span class="cell sw ${cls}"></span>${label}<span class="n">${c[k]}</span></button>`
   ).join("");
@@ -938,7 +1205,7 @@ function filtered() {
   const q = norm(state.query.trim());
   return state.recipients.filter((r) => {
     if (state.filter !== "todos" && keyOf(r) !== state.filter) return false;
-    return !q || norm(r.nome).includes(q) || norm(r.email).includes(q);
+    return !q || norm(r.nome).includes(q) || norm(r.email).includes(q) || norm(r.empresa || "").includes(q);
   });
 }
 
@@ -950,18 +1217,26 @@ function renderTable() {
   const slice = rows.slice(start, start + PAGE_SIZE);
 
   if (!slice.length) {
-    el.tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><p>Nenhum destinatário encontrado.</p><button class="link" type="button" data-clear>Limpar filtros</button></td></tr>`;
+    el.tbody.innerHTML = `<tr class="empty-row"><td colspan="6"><p>Nenhum destinatário encontrado.</p><button class="link" type="button" data-clear>Limpar filtros</button></td></tr>`;
     el.pager.innerHTML = "";
     return;
   }
   el.tbody.innerHTML = slice.map((r) => {
     const k = r.status === "enviando" ? "enviando" : keyOf(r);
-    const action = r.status === "enviado" ? "" :
-      `<button class="link" type="button" data-send="${r.row}" ${state.running ? "disabled" : ""}>${r.status === "erro" ? "Tentar de novo" : "Enviar agora"}</button>`;
+    let action = "";
+    if (k === "enviado") {
+      action = "";
+    } else if (k === "descadastrado") {
+      action = '<span style="font-size:12px;color:var(--muted);font-weight:600;">Descadastrado</span>';
+    } else {
+      action = `<button class="link" type="button" data-send="${r.row}" ${state.running ? "disabled" : ""}>${k === "erro" ? "Tentar de novo" : "Enviar agora"}</button>`;
+    }
+
     return `<tr>
       <td class="nm">${esc(r.nome)}</td>
       <td class="em">${esc(r.email)}</td>
-      <td><span class="st st-${k}">${labelOf(r)}</span>${r.sim ? '<span class="simtag">simulado</span>' : ""}${r.erro && r.status === "erro" ? `<span class="errmsg">${esc(r.erro)}</span>` : ""}</td>
+      <td class="emp">${esc(r.empresa || "—")}${r.email_empresa ? `<small>${esc(r.email_empresa)}</small>` : ""}</td>
+      <td><span class="st st-${k}">${labelOf(r)}</span>${r.sim ? '<span class="simtag">simulado</span>' : ""}${r.erro && k === "erro" ? `<span class="errmsg">${esc(r.erro)}</span>` : ""}</td>
       <td class="dt">${r.data_envio ? fmtDate(r.data_envio) : "—"}</td>
       <td class="ac">${action}</td>
     </tr>`;
@@ -1082,6 +1357,7 @@ function switchTab(name) {
   const tabs = [
     { btn: el.tabBtnRecipients, panel: el.tabRecipients, key: "recipients" },
     { btn: el.tabBtnAdd,        panel: el.tabAdd,        key: "add" },
+    { btn: el.tabBtnBuilder,    panel: el.tabBuilder,    key: "builder" },
     { btn: el.tabBtnTemplate,   panel: el.tabTemplate,   key: "template" },
     { btn: el.tabBtnPreview,    panel: el.tabPreview,    key: "preview" },
   ];
@@ -1097,6 +1373,9 @@ function switchTab(name) {
     loadTemplateSettings();
     renderLiveEditorPreview();
   }
+  if (name === "builder") {
+    initBuilder();
+  }
 }
 
 /* ---------- Aba: Adicionar Destinatário ---------- */
@@ -1104,6 +1383,8 @@ async function handleAddRecipient(e) {
   e.preventDefault();
   const nome = el.addName.value.trim();
   const email = el.addEmail.value.trim().toLowerCase();
+  const empresa = el.addEmpresa.value.trim();
+  const email_empresa = el.addEmailEmpresa.value.trim().toLowerCase();
 
   if (!nome || !email) {
     showToast("Preencha o nome e o e-mail.", "warn");
@@ -1114,7 +1395,7 @@ async function handleAddRecipient(e) {
   el.addSubmitBtn.textContent = "Adicionando...";
 
   try {
-    const res = await api.addRecipient(nome, email);
+    const res = await api.addRecipient(nome, email, empresa, email_empresa);
     const added = res.recipient;
 
     // Insere no estado local
@@ -1122,6 +1403,8 @@ async function handleAddRecipient(e) {
       row: added.row,
       nome: added.nome,
       email: added.email,
+      empresa: added.empresa || "",
+      email_empresa: added.email_empresa || "",
       status: "pendente",
       data_envio: "",
       sim: false,
@@ -1133,10 +1416,12 @@ async function handleAddRecipient(e) {
     renderAll();
 
     showToast(`✓ ${nome} adicionado(a) à lista de disparos!`, "ok");
-    log("info", `Novo destinatário adicionado: ${nome} <${email}> (Linha ${added.row})`);
+    log("info", `Novo destinatário adicionado: ${nome} <${email}> [Empresa: ${empresa || "—"}] (Linha ${added.row})`);
 
     el.addName.value = "";
     el.addEmail.value = "";
+    el.addEmpresa.value = "";
+    el.addEmailEmpresa.value = "";
 
     // Retorna para a tabela de destinatários
     setTimeout(() => switchTab("recipients"), 800);
@@ -1147,6 +1432,533 @@ async function handleAddRecipient(e) {
     el.addSubmitBtn.disabled = false;
     el.addSubmitBtn.textContent = "+ Inserir na Lista de Disparos";
   }
+}
+
+/* =====================================================================
+   CONSTRUTOR VISUAL DE LAYOUT (DRAG AND DROP)
+   ===================================================================== */
+
+const BLOCK_DEFINITIONS = {
+  header: {
+    icon: "🏷️",
+    label: "Cabeçalho com Logo",
+    defaults: () => ({
+      type: "header",
+      name: "Cabeçalho com Logo",
+      title: "⚖️ POLITIZE",
+      subtitle: "Educação Política para Todos",
+      bg_color: "#1A1A2E",
+      text_color: "#FFFFFF",
+    }),
+  },
+  hero: {
+    icon: "🌟",
+    label: "Banner Hero Principal",
+    defaults: () => ({
+      type: "hero",
+      name: "Banner Hero Principal",
+      tag: "Parceria Educacional",
+      title: "Olá, {{nome}}! 👋",
+      subtitle: "Transforme a forma como sua escola enxerga a política",
+      button_text: "Saiba Mais →",
+      button_url: "https://www.politize.com.br",
+      bg_color: "#16213E",
+    }),
+  },
+  text: {
+    icon: "📝",
+    label: "Texto / Parágrafo",
+    defaults: () => ({
+      type: "text",
+      name: "Parágrafo de Conteúdo",
+      section_title: "O que oferecemos à sua escola:",
+      content: "Sabemos que falar sobre política nas escolas pode ser um desafio — por isso o Politize existe: para tornar esse assunto acessível, imparcial e engajante para jovens de todo o Brasil.",
+      align: "left",
+    }),
+  },
+  cards: {
+    icon: "🗂️",
+    label: "Cards de Benefícios",
+    defaults: () => ({
+      type: "cards",
+      name: "Cards de Benefícios",
+      items: [
+        { icon: "📚", title: "Conteúdo Gratuito", desc: "Mais de 500 artigos e vídeos sobre política e cidadania." },
+        { icon: "🎯", title: "Conteúdo Imparcial", desc: "Abordagem apartidária, baseada em fatos para os alunos." },
+        { icon: "🤝", title: "Parceria Educacional", desc: "Suporte pedagógico adaptado para o currículo escolar." },
+        { icon: "🚀", title: "Impacto Real", desc: "Mais de 2 milhões de jovens impactados em todo o Brasil." }
+      ]
+    }),
+  },
+  highlight: {
+    icon: "💡",
+    label: "Caixa de Destaque",
+    defaults: () => ({
+      type: "highlight",
+      name: "Caixa de Destaque",
+      title: "Impacto Comprovado nas Escolas",
+      content: "Mais de 80% dos educadores parceiros relatam melhora significativa no engajamento dos alunos.",
+    }),
+  },
+  cta: {
+    icon: "📢",
+    label: "Chamada para Ação (CTA)",
+    defaults: () => ({
+      type: "cta",
+      name: "Chamada para Ação (CTA)",
+      title: "Leve o Politize para sua escola agora",
+      subtitle: "Entre em contato e descubra como podemos firmar uma parceria.",
+      button_text: "Entrar em Contato",
+      button_url: "mailto:parceria@politize.com.br",
+      bg_color: "#FF6B35",
+    }),
+  },
+  button: {
+    icon: "🔘",
+    label: "Botão de Link",
+    defaults: () => ({
+      type: "button",
+      name: "Botão de Ação",
+      button_text: "Conhecer os Projetos →",
+      button_url: "https://www.politize.com.br",
+      bg_color: "#FF6B35",
+      align: "center",
+    }),
+  },
+  divider: {
+    icon: "➖",
+    label: "Linha Divisória",
+    defaults: () => ({
+      type: "divider",
+      name: "Divisor",
+    }),
+  },
+  image: {
+    icon: "🖼️",
+    label: "Imagem / Banner",
+    defaults: () => ({
+      type: "image",
+      name: "Banner Visual",
+      image_url: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800&q=80",
+      alt: "Educação Cidadã Politize",
+      link_url: "https://www.politize.com.br",
+    }),
+  },
+  footer: {
+    icon: "📋",
+    label: "Rodapé com Descadastro",
+    defaults: () => ({
+      type: "footer",
+      name: "Rodapé Institucional",
+      text: "© 2026 Politize — Educação Política para Todos<br>Você está recebendo este e-mail porque sua escola pode se beneficiar de nossa parceria.",
+      unsubscribe_text: "Descadastrar",
+      privacy_url: "https://www.politize.com.br/privacidade",
+    }),
+  },
+};
+
+async function initBuilder() {
+  if (!state.blocks.length) {
+    try {
+      const cfg = await api.getTemplate();
+      if (Array.isArray(cfg.blocks) && cfg.blocks.length > 0) {
+        state.blocks = cfg.blocks;
+      } else {
+        state.blocks = JSON.parse(JSON.stringify(DEFAULT_BUILDER_BLOCKS));
+      }
+    } catch (_) {
+      state.blocks = JSON.parse(JSON.stringify(DEFAULT_BUILDER_BLOCKS));
+    }
+  }
+  renderCanvas();
+  renderBuilderPreview();
+}
+
+function renderCanvas() {
+  el.canvasList.innerHTML = "";
+  el.blockCountBadge.textContent = `${state.blocks.length} ${plural(state.blocks.length, "bloco ativo", "blocos ativos")}`;
+
+  state.blocks.forEach((block, index) => {
+    const item = document.createElement("div");
+    item.className = "block-item";
+    item.dataset.id = block.id;
+    item.dataset.index = index;
+    item.draggable = true;
+
+    const bDef = BLOCK_DEFINITIONS[block.type] || { icon: "📦", label: block.type };
+
+    item.innerHTML = `
+      <div class="block-head">
+        <div class="block-title-grp">
+          <span class="block-handle" title="Arraste para mudar a posição">⋮⋮</span>
+          <span class="block-icon">${bDef.icon}</span>
+          <span class="block-name">${esc(block.name || bDef.label)}</span>
+          <span class="block-type-badge">${block.type}</span>
+        </div>
+        <div class="block-actions">
+          <button type="button" class="btn-blk" data-act="up" title="Mover para cima" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" class="btn-blk" data-act="down" title="Mover para baixo" ${index === state.blocks.length - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" class="btn-blk edit" data-act="toggle" title="Editar propriedades" aria-expanded="false">⚙</button>
+          <button type="button" class="btn-blk" data-act="dup" title="Duplicar bloco">⧉</button>
+          <button type="button" class="btn-blk del" data-act="del" title="Excluir bloco">✕</button>
+        </div>
+      </div>
+      <div class="block-body" id="body_${block.id}" hidden>
+        ${renderBlockEditorFields(block)}
+      </div>
+    `;
+
+    // Eventos de Arrastar e Soltar (HTML5 Drag and Drop)
+    item.addEventListener("dragstart", (e) => {
+      state.draggedBlockId = block.id;
+      item.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", block.id);
+    });
+
+    item.addEventListener("dragend", () => {
+      item.classList.remove("dragging");
+      document.querySelectorAll(".block-item").forEach((el) => el.classList.remove("drag-over-top", "drag-over-bottom"));
+      state.draggedBlockId = null;
+    });
+
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = item.getBoundingClientRect();
+      const relY = e.clientY - rect.top;
+      if (relY < rect.height / 2) {
+        item.classList.add("drag-over-top");
+        item.classList.remove("drag-over-bottom");
+      } else {
+        item.classList.add("drag-over-bottom");
+        item.classList.remove("drag-over-top");
+      }
+    });
+
+    item.addEventListener("dragleave", () => {
+      item.classList.remove("drag-over-top", "drag-over-bottom");
+    });
+
+    item.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const srcId = state.draggedBlockId || e.dataTransfer.getData("text/plain");
+      const targetId = block.id;
+      if (!srcId || srcId === targetId) return;
+
+      const rect = item.getBoundingClientRect();
+      const insertBefore = (e.clientY - rect.top) < (rect.height / 2);
+
+      reorderBlocks(srcId, targetId, insertBefore);
+    });
+
+    // Ações dos botões do bloco
+    item.querySelector('[data-act="up"]')?.addEventListener("click", () => {
+      if (index > 0) {
+        const temp = state.blocks[index];
+        state.blocks[index] = state.blocks[index - 1];
+        state.blocks[index - 1] = temp;
+        renderCanvas();
+        renderBuilderPreview();
+      }
+    });
+
+    item.querySelector('[data-act="down"]')?.addEventListener("click", () => {
+      if (index < state.blocks.length - 1) {
+        const temp = state.blocks[index];
+        state.blocks[index] = state.blocks[index + 1];
+        state.blocks[index + 1] = temp;
+        renderCanvas();
+        renderBuilderPreview();
+      }
+    });
+
+    const toggleBtn = item.querySelector('[data-act="toggle"]');
+    const bodyEl = item.querySelector(`#body_${block.id}`);
+    toggleBtn?.addEventListener("click", () => {
+      const isHidden = bodyEl.hidden;
+      bodyEl.hidden = !isHidden;
+      toggleBtn.setAttribute("aria-expanded", isHidden);
+    });
+
+    item.querySelector('[data-act="dup"]')?.addEventListener("click", () => {
+      const clone = JSON.parse(JSON.stringify(block));
+      clone.id = "block_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+      clone.name = (clone.name || "") + " (Cópia)";
+      state.blocks.splice(index + 1, 0, clone);
+      renderCanvas();
+      renderBuilderPreview();
+      showToast("Bloco duplicado com sucesso!");
+    });
+
+    item.querySelector('[data-act="del"]')?.addEventListener("click", () => {
+      if (state.blocks.length <= 1) {
+        showToast("O e-mail deve ter pelo menos um bloco.", "warn");
+        return;
+      }
+      state.blocks.splice(index, 1);
+      renderCanvas();
+      renderBuilderPreview();
+    });
+
+    // Inputs reativos de propriedades
+    bodyEl.querySelectorAll("input, textarea, select").forEach((input) => {
+      input.addEventListener("input", (e) => {
+        const key = e.target.dataset.key;
+        block[key] = e.target.value;
+        if (key === "name") {
+          item.querySelector(".block-name").textContent = e.target.value || bDef.label;
+        }
+        renderBuilderPreview();
+      });
+    });
+
+    el.canvasList.appendChild(item);
+  });
+}
+
+function reorderBlocks(srcId, targetId, insertBefore) {
+  const fromIdx = state.blocks.findIndex((b) => b.id === srcId);
+  const toIdx = state.blocks.findIndex((b) => b.id === targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  const [moved] = state.blocks.splice(fromIdx, 1);
+  let destIdx = state.blocks.findIndex((b) => b.id === targetId);
+  if (!insertBefore) destIdx += 1;
+
+  state.blocks.splice(destIdx, 0, moved);
+  renderCanvas();
+  renderBuilderPreview();
+  showToast("Ordem dos blocos atualizada!");
+}
+
+function renderBlockEditorFields(block) {
+  let fields = `
+    <div class="blk-field">
+      <label>Título do Bloco no Painel</label>
+      <input type="text" data-key="name" value="${esc(block.name || "")}">
+    </div>
+  `;
+
+  if (block.type === "header") {
+    fields += `
+      <div class="blk-field"><label>Título do Topo (Logo)</label><input type="text" data-key="title" value="${esc(block.title || "")}"></div>
+      <div class="blk-field"><label>Subtítulo</label><input type="text" data-key="subtitle" value="${esc(block.subtitle || "")}"></div>
+      <div class="blk-field"><label>Cor de Fundo</label><input type="color" data-key="bg_color" value="${esc(block.bg_color || "#1A1A2E")}"></div>
+    `;
+  } else if (block.type === "hero") {
+    fields += `
+      <div class="blk-field"><label>Tag Superior</label><input type="text" data-key="tag" value="${esc(block.tag || "")}"></div>
+      <div class="blk-field"><label>Título Hero (Suporta {{nome}})</label><input type="text" data-key="title" value="${esc(block.title || "")}"></div>
+      <div class="blk-field"><label>Subtítulo</label><input type="text" data-key="subtitle" value="${esc(block.subtitle || "")}"></div>
+      <div class="blk-field"><label>Texto do Botão Hero</label><input type="text" data-key="button_text" value="${esc(block.button_text || "")}"></div>
+      <div class="blk-field"><label>URL do Botão Hero</label><input type="url" data-key="button_url" value="${esc(block.button_url || "")}"></div>
+      <div class="blk-field"><label>Cor de Fundo</label><input type="color" data-key="bg_color" value="${esc(block.bg_color || "#16213E")}"></div>
+    `;
+  } else if (block.type === "text") {
+    fields += `
+      <div class="blk-field"><label>Título da Seção (Opcional)</label><input type="text" data-key="section_title" value="${esc(block.section_title || "")}"></div>
+      <div class="blk-field"><label>Conteúdo de Texto (Suporta {{nome}}, {{empresa}})</label><textarea data-key="content" rows="4">${esc(block.content || "")}</textarea></div>
+      <div class="blk-field"><label>Alinhamento</label>
+        <select data-key="align">
+          <option value="left" ${block.align === "left" ? "selected" : ""}>À esquerda</option>
+          <option value="center" ${block.align === "center" ? "selected" : ""}>Centralizado</option>
+        </select>
+      </div>
+    `;
+  } else if (block.type === "highlight") {
+    fields += `
+      <div class="blk-field"><label>Título do Destaque</label><input type="text" data-key="title" value="${esc(block.title || "")}"></div>
+      <div class="blk-field"><label>Mensagem de Destaque</label><textarea data-key="content" rows="3">${esc(block.content || "")}</textarea></div>
+    `;
+  } else if (block.type === "cta") {
+    fields += `
+      <div class="blk-field"><label>Título da Chamada (CTA)</label><input type="text" data-key="title" value="${esc(block.title || "")}"></div>
+      <div class="blk-field"><label>Subtítulo Explicativo</label><input type="text" data-key="subtitle" value="${esc(block.subtitle || "")}"></div>
+      <div class="blk-field"><label>Texto do Botão</label><input type="text" data-key="button_text" value="${esc(block.button_text || "")}"></div>
+      <div class="blk-field"><label>Link do Botão (URL ou mailto:)</label><input type="text" data-key="button_url" value="${esc(block.button_url || "")}"></div>
+      <div class="blk-field"><label>Cor de Fundo</label><input type="color" data-key="bg_color" value="${esc(block.bg_color || "#FF6B35")}"></div>
+    `;
+  } else if (block.type === "button") {
+    fields += `
+      <div class="blk-field"><label>Texto do Botão</label><input type="text" data-key="button_text" value="${esc(block.button_text || "")}"></div>
+      <div class="blk-field"><label>Link / URL</label><input type="url" data-key="button_url" value="${esc(block.button_url || "")}"></div>
+      <div class="blk-field"><label>Cor do Botão</label><input type="color" data-key="bg_color" value="${esc(block.bg_color || "#FF6B35")}"></div>
+    `;
+  } else if (block.type === "image") {
+    fields += `
+      <div class="blk-field"><label>URL da Imagem</label><input type="url" data-key="image_url" value="${esc(block.image_url || "")}"></div>
+      <div class="blk-field"><label>Texto Alternativo (Alt)</label><input type="text" data-key="alt" value="${esc(block.alt || "")}"></div>
+      <div class="blk-field"><label>Link de Clique (Opcional)</label><input type="url" data-key="link_url" value="${esc(block.link_url || "")}"></div>
+    `;
+  } else if (block.type === "footer") {
+    fields += `
+      <div class="blk-field"><label>Texto Institucional / Copyright</label><textarea data-key="text" rows="2">${esc(block.text || "")}</textarea></div>
+      <div class="blk-field"><label>Texto do Link de Descadastro</label><input type="text" data-key="unsubscribe_text" value="${esc(block.unsubscribe_text || "Descadastrar")}"></div>
+      <div class="blk-field"><label>Link da Política de Privacidade</label><input type="url" data-key="privacy_url" value="${esc(block.privacy_url || "")}"></div>
+    `;
+  }
+
+  return fields;
+}
+
+function compileBlocksClient(blocks) {
+  let rendered = "";
+  blocks.forEach((b) => {
+    const bType = b.type;
+    if (bType === "header") {
+      rendered += `
+      <tr>
+        <td style="background-color:${esc(b.bg_color || "#1A1A2E")};padding:30px 40px;text-align:center;border-radius:14px 14px 0 0;">
+          <h1 style="margin:0;font-size:26px;font-weight:700;color:${esc(b.text_color || "#FFFFFF")};letter-spacing:2px;font-family:Inter,Arial,sans-serif;">${esc(b.title || "⚖️ POLITIZE")}</h1>
+          <p style="margin:6px 0 0;font-size:13px;color:#A8B2C8;font-family:Inter,Arial,sans-serif;">${esc(b.subtitle || "")}</p>
+        </td>
+      </tr>`;
+    } else if (bType === "hero") {
+      const btn = b.button_text ? `<div style="margin-top:24px;"><a href="${esc(b.button_url || "#")}" style="background-color:#FF6B35;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold;display:inline-block;font-size:15px;">${esc(b.button_text)}</a></div>` : "";
+      rendered += `
+      <tr>
+        <td style="background-color:${esc(b.bg_color || "#16213E")};padding:44px 36px;text-align:center;color:#ffffff;">
+          <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#FF6B35;text-transform:uppercase;letter-spacing:3px;">${esc(b.tag || "")}</p>
+          <h2 style="margin:0;font-size:30px;line-height:1.3;font-weight:700;color:#ffffff;">${esc(b.title || "Olá, Educador(a)!")}</h2>
+          <p style="margin:12px auto 0;font-size:17px;color:#C8D0E0;max-width:480px;line-height:1.5;">${esc(b.subtitle || "")}</p>
+          ${btn}
+        </td>
+      </tr>`;
+    } else if (bType === "text") {
+      const t = b.section_title ? `<h3 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#1A1A2E;">${esc(b.section_title)}</h3>` : "";
+      rendered += `
+      <tr>
+        <td style="background-color:#ffffff;padding:36px;text-align:${b.align || "left"};font-size:16px;line-height:1.7;color:#333333;">
+          {${t}}
+          <div style="font-size:16px;color:#444444;line-height:1.7;">${esc(b.content || "").replace(/\n/g, "<br>")}</div>
+        </td>
+      </tr>`;
+    } else if (bType === "cards") {
+      let cardsHtml = "";
+      (b.items || []).forEach((item) => {
+        cardsHtml += `
+        <div style="background:#FAFAFA;border:1.5px solid #F0F0F0;border-radius:10px;padding:18px;margin-bottom:12px;text-align:left;">
+          <span style="font-size:26px;display:block;margin-bottom:4px;">${esc(item.icon)}</span>
+          <strong style="color:#1A1A2E;font-size:15.5px;display:block;margin-bottom:4px;">${esc(item.title)}</strong>
+          <span style="color:#666666;font-size:13.5px;line-height:1.5;display:block;">${esc(item.desc)}</span>
+        </div>`;
+      });
+      rendered += `
+      <tr>
+        <td style="background-color:#ffffff;padding:0 36px 28px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            ${cardsHtml}
+          </div>
+        </td>
+      </tr>`;
+    } else if (bType === "highlight") {
+      rendered += `
+      <tr>
+        <td style="background-color:#ffffff;padding:12px 36px 24px;">
+          <div style="background:#FFF3EB;border-left:4px solid #FF6B35;border-radius:8px;padding:20px 24px;">
+            <strong style="color:#8A2E0B;font-size:16px;display:block;margin-bottom:6px;">${esc(b.title || "")}</strong>
+            <div style="color:#666666;font-size:14.5px;line-height:1.6;">${esc(b.content || "").replace(/\n/g, "<br>")}</div>
+          </div>
+        </td>
+      </tr>`;
+    } else if (bType === "cta") {
+      rendered += `
+      <tr>
+        <td style="background-color:${esc(b.bg_color || "#FF6B35")};padding:40px 36px;text-align:center;color:#ffffff;">
+          <h3 style="margin:0 0 10px;font-size:23px;font-weight:700;color:#ffffff;line-height:1.3;">${esc(b.title || "")}</h3>
+          <p style="margin:0 0 24px;font-size:15px;color:#FFE5D9;">${esc(b.subtitle || "")}</p>
+          <a href="${esc(b.button_url || "#")}" style="background-color:#ffffff;color:#FF6B35;text-decoration:none;padding:13px 32px;border-radius:8px;font-weight:700;font-size:15px;display:inline-block;">${esc(b.button_text || "Entrar em Contato")}</a>
+        </td>
+      </tr>`;
+    } else if (bType === "button") {
+      rendered += `
+      <tr>
+        <td style="background-color:#ffffff;padding:20px 36px;text-align:${b.align || "center"};">
+          <a href="${esc(b.button_url || "#")}" style="background-color:${esc(b.bg_color || "#FF6B35")};color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:bold;font-size:15px;display:inline-block;">${esc(b.button_text || "Clique Aqui")}</a>
+        </td>
+      </tr>`;
+    } else if (bType === "divider") {
+      rendered += `
+      <tr>
+        <td style="background-color:#ffffff;padding:8px 36px;">
+          <hr style="border:0;border-top:1px solid #ECECEC;margin:0;">
+        </td>
+      </tr>`;
+    } else if (bType === "image") {
+      const img = `<img src="${esc(b.image_url || "")}" alt="${esc(b.alt || "")}" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto;">`;
+      rendered += `
+      <tr>
+        <td style="background-color:#ffffff;padding:18px 36px;text-align:center;">
+          ${b.link_url ? `<a href="${esc(b.link_url)}">${img}</a>` : img}
+        </td>
+      </tr>`;
+    } else if (bType === "footer") {
+      rendered += `
+      <tr>
+        <td style="background-color:#1A1A2E;padding:32px 36px;text-align:center;color:#A8B2C8;font-size:12.5px;line-height:1.6;border-radius:0 0 14px 14px;">
+          <div>${b.text || "© 2026 Politize — Educação Política para Todos"}</div>
+          <div style="margin-top:14px;color:#8592A6;">
+            <a href="/api/unsubscribe?email=exemplo@escola.edu.br" style="color:#A8B2C8;text-decoration:underline;">${esc(b.unsubscribe_text || "Descadastrar")}</a> ·
+            <a href="${esc(b.privacy_url || "https://www.politize.com.br/privacidade")}" style="color:#A8B2C8;text-decoration:underline;">Política de Privacidade</a>
+          </div>
+        </td>
+      </tr>`;
+    }
+  });
+
+  return `<!doctype html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body { margin: 0; padding: 20px 10px; background-color: #F4F4F5; font-family: Inter, Arial, sans-serif; }
+      table { border-collapse: collapse; }
+    </style>
+  </head>
+  <body>
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(15,24,48,0.08);" border="0" cellspacing="0" cellpadding="0">
+            ${rendered}
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>`;
+}
+
+function renderBuilderPreview() {
+  const html = compileBlocksClient(state.blocks);
+  el.builderPreviewFrame.srcdoc = html;
+  el.builderPreviewFrame.style.width = state.builderWidth === "mobile" ? "375px" : "100%";
+}
+
+async function handleSaveLayout() {
+  el.saveLayoutBtn.disabled = true;
+  el.saveLayoutBtn.textContent = "Salvando...";
+  try {
+    await api.saveTemplate({ blocks: state.blocks });
+    showToast("✓ Layout do e-mail salvo com sucesso!", "ok");
+    renderBuilderPreview();
+    renderPreview();
+  } catch (e) {
+    showToast("Erro ao salvar layout: " + e.message, "err");
+  } finally {
+    el.saveLayoutBtn.disabled = false;
+    el.saveLayoutBtn.textContent = "💾 Salvar Layout";
+  }
+}
+
+async function handleResetLayout() {
+  if (!confirm("Deseja restaurar a estrutura de blocos para o layout padrão original?")) return;
+  state.blocks = JSON.parse(JSON.stringify(DEFAULT_BUILDER_BLOCKS));
+  renderCanvas();
+  renderBuilderPreview();
+  await handleSaveLayout();
 }
 
 /* ---------- Aba: Editor de Mensagem e Display ---------- */
@@ -1192,7 +2004,6 @@ async function handleSaveTemplate(e) {
 
   try {
     await api.saveTemplate(payload);
-    // Atualiza assunto do painel lateral também
     if (payload.subject) {
       el.subject.value = payload.subject;
     }
@@ -1226,7 +2037,8 @@ async function handleResetTemplate() {
 function renderPreview() {
   const r = state.recipients[+el.previewWho.value] || { nome: "Educador(a)" };
   const nomeParam = encodeURIComponent(r.nome || "Educador(a)");
-  el.previewFrame.src = `${API_BASE}/api/preview?nome=${nomeParam}&t=${Date.now()}`;
+  const empParam = encodeURIComponent(r.empresa || "");
+  el.previewFrame.src = `${API_BASE}/api/preview?nome=${nomeParam}&empresa=${empParam}&t=${Date.now()}`;
   el.previewFrame.style.width = state.previewWidth === "mobile" ? "375px" : "640px";
 }
 
@@ -1242,15 +2054,24 @@ async function checkSystemHealth() {
     
     const sheetsOk = h.services.google_sheets.configured;
     const resendOk = h.services.resend.configured;
+    const sheetUrl = h.services.google_sheets.spreadsheet_url;
     
+    // Atualiza botões da planilha se disponíveis
+    if (sheetUrl) {
+      el.openSheetTopBtn.href = sheetUrl;
+      el.openSheetTopBtn.style.display = "inline-flex";
+      el.openSheetToolbarBtn.href = sheetUrl;
+      el.openSheetToolbarBtn.style.display = "inline-flex";
+    }
+
     if (sheetsOk && resendOk) {
       el.statusPill.className = "status-pill online";
       el.statusLabel.textContent = "Conectado";
-      el.addDestNotice.textContent = "Destinatários são sincronizados diretamente na sua planilha oficial do Google Sheets.";
+      el.addDestNotice.textContent = "Destinatários e empresas são sincronizados diretamente na sua planilha oficial do Google Sheets.";
     } else {
       el.statusPill.className = "status-pill demo";
       el.statusLabel.textContent = "Modo Demonstração";
-      el.addDestNotice.textContent = "Modo demonstração ativo: os novos destinatários entram na lista da sessão atual.";
+      el.addDestNotice.textContent = "Modo demonstração ativo: novos destinatários entram na lista da sessão atual.";
     }
   } catch (e) {
     el.statusPill.className = "status-pill offline";
@@ -1280,7 +2101,7 @@ function openDiagModal() {
     <li class="diag-item">
       <div>
         <div class="diag-label">Google Sheets</div>
-        <div class="diag-sub">${gs.credentials_found ? `Credenciais OK (${gs.sheet_name})` : "Arquivo credentials.json não encontrado"}</div>
+        <div class="diag-sub">${gs.credentials_found ? `Credenciais OK (${gs.sheet_name})` : "Arquivo credentials.json não encontrado"}${gs.spreadsheet_url ? ` • <a href="${gs.spreadsheet_url}" target="_blank" style="color:var(--orange);">Abrir Planilha ↗</a>` : ""}</div>
       </div>
       <span class="diag-badge ${gs.configured ? 'ok' : 'warn'}">${gs.configured ? 'Conectado' : 'Demonstração'}</span>
     </li>
@@ -1293,7 +2114,7 @@ function openDiagModal() {
     </li>
     <li class="diag-item">
       <div>
-        <div class="diag-label">Template & Display</div>
+        <div class="diag-label">Template & Layout</div>
         <div class="diag-sub">${tpl.type} carregado com sucesso</div>
       </div>
       <span class="diag-badge ok">Carregado</span>
@@ -1308,7 +2129,9 @@ function normalize(list) {
     row: d.row,
     nome: d.nome || "",
     email: d.email,
-    status: String(d.status || "").toLowerCase() === "enviado" ? "enviado" : "pendente",
+    empresa: d.empresa || "",
+    email_empresa: d.email_empresa || "",
+    status: d.status || "pendente",
     data_envio: d.data_envio || "",
     sim: false,
     erro: "",
@@ -1324,7 +2147,7 @@ async function load() {
     state.recipients = normalize(raw);
   } catch (e) {
     el.headline.textContent = "Não foi possível carregar a lista.";
-    el.tbody.innerHTML = `<tr><td colspan="5"><div style="text-align:center;padding:36px;color:var(--muted);"><strong style="display:block;color:var(--red);margin-bottom:6px;">Falha de comunicação com o servidor</strong>${esc(e.message)}<br><button class="link" type="button" id="retryBtn" style="margin-top:12px;">Tentar novamente</button></div></td></tr>`;
+    el.tbody.innerHTML = `<tr><td colspan="6"><div style="text-align:center;padding:36px;color:var(--muted);"><strong style="display:block;color:var(--red);margin-bottom:6px;">Falha de comunicação com o servidor</strong>${esc(e.message)}<br><button class="link" type="button" id="retryBtn" style="margin-top:12px;">Tentar novamente</button></div></td></tr>`;
     el.pager.innerHTML = ""; el.legend.innerHTML = ""; el.waffle.innerHTML = "";
     $("retryBtn")?.addEventListener("click", load);
     return;
@@ -1380,11 +2203,43 @@ el.waffle.addEventListener("click", (e) => {
 /* Eventos das Abas */
 el.tabBtnRecipients.addEventListener("click", () => switchTab("recipients"));
 el.tabBtnAdd.addEventListener("click", () => switchTab("add"));
+el.tabBtnBuilder.addEventListener("click", () => switchTab("builder"));
 el.tabBtnTemplate.addEventListener("click", () => switchTab("template"));
 el.tabBtnPreview.addEventListener("click", () => switchTab("preview"));
 
 /* Formulário de Adição */
 el.addForm.addEventListener("submit", handleAddRecipient);
+
+/* Construtor de Layout */
+el.saveLayoutBtn.addEventListener("click", handleSaveLayout);
+el.resetLayoutBtn.addEventListener("click", handleResetLayout);
+el.btnBuilderDesk.addEventListener("click", () => {
+  state.builderWidth = "desktop";
+  el.btnBuilderDesk.setAttribute("aria-pressed", "true");
+  el.btnBuilderMob.setAttribute("aria-pressed", "false");
+  renderBuilderPreview();
+});
+el.btnBuilderMob.addEventListener("click", () => {
+  state.builderWidth = "mobile";
+  el.btnBuilderMob.setAttribute("aria-pressed", "true");
+  el.btnBuilderDesk.setAttribute("aria-pressed", "false");
+  renderBuilderPreview();
+});
+
+// Paleta de Adicionar Bloco
+document.querySelectorAll(".btn-palette").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const type = btn.dataset.addType;
+    const def = BLOCK_DEFINITIONS[type];
+    if (!def) return;
+    const newBlock = def.defaults();
+    newBlock.id = "block_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    state.blocks.push(newBlock);
+    renderCanvas();
+    renderBuilderPreview();
+    showToast(`✓ Bloco "${newBlock.name}" adicionado ao layout!`);
+  });
+});
 
 /* Formulário do Template */
 el.templateForm.addEventListener("submit", handleSaveTemplate);
@@ -1394,9 +2249,9 @@ el.livePreviewRefreshBtn.addEventListener("click", renderLiveEditorPreview);
 /* Prévia Oficial */
 el.previewWho.addEventListener("change", renderPreview);
 el.refreshPreviewBtn.addEventListener("click", renderPreview);
-document.querySelectorAll(".seg2 button").forEach((b) => b.addEventListener("click", () => {
+document.querySelectorAll(".seg2 button[data-w]").forEach((b) => b.addEventListener("click", () => {
   state.previewWidth = b.dataset.w;
-  document.querySelectorAll(".seg2 button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  document.querySelectorAll(".seg2 button[data-w]").forEach((x) => x.setAttribute("aria-pressed", x === b));
   renderPreview();
 }));
 
