@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 import resend
 
@@ -99,9 +100,13 @@ def compile_mjml(template_path: str) -> str:
     try:
         html = _compile_mjml_via_python(mjml_source)
         logger.info("Compilação MJML concluída via pacote Python.")
+        try:
+            path.with_suffix(".html").write_text(html, encoding="utf-8")
+        except Exception:
+            pass
         return html
-    except ImportError:
-        logger.warning("Pacote 'mjml' Python não encontrado. Tentando Node.js CLI...")
+    except (ImportError, RuntimeError) as e:
+        logger.warning(f"Pacote 'mjml' Python não disponível ou falhou ({e}). Tentando Node.js CLI...")
 
     # Fallback para o CLI do Node.js
     try:
@@ -150,12 +155,50 @@ def render_template(html_template: str, variables: dict) -> str:
         placeholder = "{{" + key + "}}"
         html = html.replace(placeholder, str(value))
 
-    # Avisa sobre marcadores não preenchidos que restaram no HTML
-    remaining = re.findall(r"\{\{(\w+)\}\}", html)
+    # Injeta a URL de descadastro se fornecida, substituindo marcadores ou links href="#"
+    unsub_url = variables.get("unsubscribe_url")
+    if unsub_url:
+        html = html.replace("{{unsubscribe_url}}", str(unsub_url))
+        # Substitui links de descadastrar que apontavam para "#"
+        html = re.sub(
+            r'(<a\s+[^>]*href=["\'])#(["\'][^>]*>.*?Descadastr.*?<\/a>)',
+            rf'\g<1>{unsub_url}\g<2>',
+            html,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+
+    # Avisa sobre marcadores não preenchidos que restaram no HTML (ignorando opcionais)
+    remaining = [m for m in re.findall(r"\{\{(\w+)\}\}", html) if m not in ("unsubscribe_url", "empresa", "email_empresa")]
     if remaining:
         logger.warning(f"Marcadores não substituídos no template: {remaining}")
 
     return html
+
+
+def build_unsubscribe_url(to_email: str, token: str = "") -> str:
+    """
+    Gera a URL de descadastro apropriada para o destinatário:
+    1. Se UNSUBSCRIBE_URL (ou GOOGLE_APPS_SCRIPT_URL) estiver configurado, usa a URL em nuvem
+       (permite funcionamento 24/7 sem que a aplicação local esteja rodando).
+    2. Se APP_BASE_URL for um servidor público, usa a rota /api/unsubscribe da aplicação.
+    3. Caso contrário, utiliza o padrão universal mailto: que funciona autonomamente sem nenhum servidor.
+    """
+    clean_email = to_email.strip().lower()
+    cloud_url = os.getenv("UNSUBSCRIBE_URL") or os.getenv("GOOGLE_APPS_SCRIPT_URL") or ""
+    if cloud_url.strip().startswith("http"):
+        sep = "&" if "?" in cloud_url else "?"
+        token_part = f"&token={token}" if token else ""
+        return f"{cloud_url.strip()}{sep}email={clean_email}{token_part}"
+
+    base_url = os.getenv("APP_BASE_URL", "").strip()
+    if base_url and not any(h in base_url.lower() for h in ("localhost", "127.0.0.1")):
+        token_part = f"&token={token}" if token else ""
+        return f"{base_url}/api/unsubscribe?email={clean_email}{token_part}"
+
+    # Padrão universal autônomo (não requer servidor nem aplicação local rodando)
+    sub = "Descadastrar da lista Politize"
+    msg = f"Solicito o descadastro do e-mail ({clean_email}) da lista de envios da Politize."
+    return f"mailto:contato@politize.com.br?subject={quote(sub)}&body={quote(msg)}"
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +214,7 @@ def send_email(
     dry_run: bool = False,
 ) -> Optional[str]:
     """
-    Envia um e-mail HTML via API do Resend.
+    Envia um e-mail HTML via API do Resend com cabeçalhos oficiais de Opt-Out (RFC 8058).
 
     Args:
         api_key:    Chave de API do Resend (RESEND_API_KEY).
@@ -194,11 +237,18 @@ def send_email(
     # Configura a chave da API
     resend.api_key = api_key
 
+    # Cabeçalhos padrão RFC 8058 para descadastro direto nos clientes de e-mail (Gmail, Outlook)
+    headers = {
+        "List-Unsubscribe": f"<mailto:contato@politize.com.br?subject=Descadastrar%20{to_email}>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+
     params = {
         "from":    from_email,
         "to":      [to_email],
         "subject": subject,
         "html":    html_body,
+        "headers": headers,
     }
 
     logger.debug(f"Enviando e-mail para {to_email}...")

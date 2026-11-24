@@ -71,10 +71,13 @@ else:
     logger.warning(".env não encontrado. Usando variáveis de ambiente do sistema.")
 
 def get_config():
+    sheet_id_raw = os.getenv("SPREADSHEET_ID", "")
+    sheet_match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", sheet_id_raw)
+    clean_sheet_id = sheet_match.group(1) if sheet_match else sheet_id_raw.strip()
     return {
         "resend_api_key":       os.getenv("RESEND_API_KEY", ""),
         "from_email":           os.getenv("FROM_EMAIL", "Politize <noreply@politize.com.br>"),
-        "spreadsheet_id":       os.getenv("SPREADSHEET_ID", ""),
+        "spreadsheet_id":       clean_sheet_id,
         "sheet_name":           os.getenv("SHEET_NAME", "Destinatários"),
         "credentials_path":     os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json"),
         "email_subject":        os.getenv("EMAIL_SUBJECT", "Conheça o Politize — Educação Política para sua Escola"),
@@ -82,6 +85,7 @@ def get_config():
         "dry_run":              os.getenv("DRY_RUN", "False").lower() in ("true", "1", "yes"),
         "template_path":        str(BASE_DIR / "templates" / "email_template.mjml"),
         "allowed_origins":      os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000"),
+        "app_base_url":         os.getenv("APP_BASE_URL", "http://localhost:8000").rstrip("/"),
     }
 
 CONFIG = get_config()
@@ -89,8 +93,69 @@ CONFIG = get_config()
 # ---------------------------------------------------------------------------
 # Importação dos módulos do domínio
 # ---------------------------------------------------------------------------
-from email_sender import compile_mjml, render_template, send_email  # noqa: E402
-from sheets_client import add_recipient, get_recipients, mark_as_sent  # noqa: E402
+from email_sender import (  # noqa: E402
+    build_unsubscribe_url,
+    compile_mjml,
+    render_template,
+    send_email,
+)
+from sheets_client import (  # noqa: E402
+    DEFAULT_DESTINATARIOS_HEADERS,
+    DEFAULT_ENVIADOS_HEADERS,
+    MSG_ESTRUTURA_INVALIDA,
+    TAB_DESTINATARIOS,
+    TAB_ENVIADOS,
+    add_recipient,
+    get_recipients,
+    get_sent_history,
+    mark_as_sent,
+    record_sent_email,
+    resubscribe_recipient,
+    unsubscribe_recipient,
+    validate_spreadsheet_structure,
+)
+
+# ---------------------------------------------------------------------------
+# Mecanismo de Descadastro Seguro (HMAC Token)
+# ---------------------------------------------------------------------------
+import hashlib  # noqa: E402
+import hmac  # noqa: E402
+
+UNSUB_SECRET = os.getenv("UNSUBSCRIBE_SECRET") or os.getenv("RESEND_API_KEY") or "politize_unsub_secret_2026"
+
+def generate_unsubscribe_token(email: str) -> str:
+    """Gera token HMAC para descadastro seguro sem risco de adulteração."""
+    raw = email.strip().lower().encode("utf-8")
+    return hmac.new(UNSUB_SECRET.encode("utf-8"), raw, hashlib.sha256).hexdigest()[:24]
+
+def verify_unsubscribe_token(email: str, token: str) -> bool:
+    """Valida o token de descadastro usando comparação em tempo constante."""
+    if not token:
+        return False
+    expected = generate_unsubscribe_token(email)
+    return hmac.compare_digest(expected, token.strip())
+
+
+def compute_message_hash(subject: str, cfg: Optional[dict] = None) -> str:
+    """
+    Gera um hash representativo do conteúdo da mensagem (assunto, textos, blocos).
+    Permite identificar com precisão quando o conteúdo do e-mail mudou para viabilizar reenvios.
+    """
+    if cfg is None:
+        cfg = get_message_config()
+    raw_parts = [
+        subject.strip(),
+        str(cfg.get("main_message", "")),
+        str(cfg.get("hero_subtitle", "")),
+        str(cfg.get("hero_title", "")),
+        str(cfg.get("cta_title", "")),
+    ]
+    if cfg.get("blocks"):
+        raw_parts.append(json.dumps(cfg["blocks"], sort_keys=True))
+    elif cfg.get("custom_html"):
+        raw_parts.append(str(cfg["custom_html"]))
+    combined = "||".join(raw_parts).encode("utf-8")
+    return hashlib.sha256(combined).hexdigest()[:16]
 
 # ---------------------------------------------------------------------------
 # Configuração Personalizada do Modelo de E-mail (Display & Conteúdo)
@@ -105,6 +170,245 @@ def _extract_name_and_email(from_str: str) -> tuple[str, str]:
     return "Politize", from_str.strip()
 
 _init_name, _init_addr = _extract_name_and_email(CONFIG["from_email"])
+
+DEFAULT_BLOCKS = [
+    {
+        "id": "block_header",
+        "type": "header",
+        "name": "Cabeçalho com Logo",
+        "title": "⚖️ POLITIZE",
+        "subtitle": "Educação Política para Todos",
+        "bg_color": "#1A1A2E",
+        "text_color": "#FFFFFF",
+    },
+    {
+        "id": "block_hero",
+        "type": "hero",
+        "name": "Banner Hero Principal",
+        "tag": "Parceria Educacional",
+        "title": "Olá, {{nome}}! 👋",
+        "subtitle": "Transforme a forma como sua escola enxerga a política",
+        "button_text": "Saiba Mais →",
+        "button_url": "https://www.politize.com.br",
+        "bg_color": "#16213E",
+    },
+    {
+        "id": "block_text",
+        "type": "text",
+        "name": "Mensagem Principal",
+        "section_title": "O que oferecemos à sua escola:",
+        "content": "Sabemos que falar sobre política nas escolas pode ser um desafio — por isso o Politize existe: para tornar esse assunto acessível, imparcial e engajante para jovens de todo o Brasil.",
+        "align": "left",
+    },
+    {
+        "id": "block_cards",
+        "type": "cards",
+        "name": "Cards de Benefícios",
+        "items": [
+            {"icon": "📚", "title": "Conteúdo Gratuito", "desc": "Mais de 500 artigos e vídeos sobre política, direito e cidadania — sem custo para a escola."},
+            {"icon": "🎯", "title": "Conteúdo Imparcial", "desc": "Abordagem apartidária, baseada em fatos e pensamento crítico para os alunos."},
+            {"icon": "🤝", "title": "Parceria Educacional", "desc": "Suporte pedagógico e materiais adaptados para o currículo escolar."},
+            {"icon": "🚀", "title": "Impacto Real", "desc": "Mais de 2 milhões de jovens impactados em todo o Brasil."}
+        ],
+    },
+    {
+        "id": "block_cta",
+        "type": "cta",
+        "name": "Chamada para Ação (CTA)",
+        "title": "Leve o Politize para sua escola agora",
+        "subtitle": "Entre em contato e descubra como podemos firmar uma parceria.",
+        "button_text": "Entrar em Contato",
+        "button_url": "mailto:parceria@politize.com.br",
+        "bg_color": "#FF6B35",
+    },
+    {
+        "id": "block_footer",
+        "type": "footer",
+        "name": "Rodapé com Descadastro",
+        "text": "© 2026 Politize — Educação Política para Todos<br>Você está recebendo este e-mail porque sua instituição pode se beneficiar de nossa parceria.",
+        "unsubscribe_text": "Descadastrar",
+        "privacy_url": "https://www.politize.com.br/privacidade",
+    },
+]
+
+def compile_blocks_to_html(blocks: list[dict]) -> str:
+    """Compila a lista ordenada de blocos visuais arrastados pelo usuário em HTML de e-mail responsivo."""
+    rendered_blocks = []
+    for b in blocks:
+        b_type = b.get("type", "text")
+        if b_type == "header":
+            title = b.get("title", "⚖️ POLITIZE")
+            sub = b.get("subtitle", "Educação Política para Todos")
+            bg = b.get("bg_color", "#1A1A2E")
+            fg = b.get("text_color", "#FFFFFF")
+            rendered_blocks.append(f"""
+            <!-- HEADER BLOCK -->
+            <tr>
+              <td style="background-color:{bg};padding:30px 40px;text-align:center;border-radius:14px 14px 0 0;">
+                <h1 style="margin:0;font-size:26px;font-weight:700;color:{fg};letter-spacing:2px;font-family:Inter,Arial,sans-serif;">{title}</h1>
+                <p style="margin:6px 0 0;font-size:13px;color:#A8B2C8;font-family:Inter,Arial,sans-serif;">{sub}</p>
+              </td>
+            </tr>""")
+        elif b_type == "hero":
+            tag = b.get("tag", "Parceria Educacional")
+            title = b.get("title", "Olá, {{nome}}! 👋")
+            sub = b.get("subtitle", "Transforme a forma como sua escola enxerga a política")
+            btn_text = b.get("button_text", "Saiba Mais →")
+            btn_url = b.get("button_url", "https://www.politize.com.br")
+            bg = b.get("bg_color", "#16213E")
+            btn_html = f"""<div style="margin-top:24px;"><a href="{btn_url}" style="background-color:#FF6B35;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold;display:inline-block;font-size:15px;">{btn_text}</a></div>""" if btn_text else ""
+            rendered_blocks.append(f"""
+            <!-- HERO BANNER BLOCK -->
+            <tr>
+              <td style="background-color:{bg};padding:44px 36px;text-align:center;color:#ffffff;">
+                <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#FF6B35;text-transform:uppercase;letter-spacing:3px;">{tag}</p>
+                <h2 style="margin:0;font-size:30px;line-height:1.3;font-weight:700;color:#ffffff;">{title}</h2>
+                <p style="margin:12px auto 0;font-size:17px;color:#C8D0E0;max-width:480px;line-height:1.5;">{sub}</p>
+                {btn_html}
+              </td>
+            </tr>""")
+        elif b_type == "text":
+            sec_title = b.get("section_title", "")
+            content = str(b.get("content", "")).replace("\n", "<br>")
+            align = b.get("align", "left")
+            title_html = f"""<h3 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#1A1A2E;">{sec_title}</h3>""" if sec_title else ""
+            rendered_blocks.append(f"""
+            <!-- TEXT BLOCK -->
+            <tr>
+              <td style="background-color:#ffffff;padding:36px;text-align:{align};font-size:16px;line-height:1.7;color:#333333;">
+                {title_html}
+                <div style="font-size:16px;color:#444444;line-height:1.7;">{content}</div>
+              </td>
+            </tr>""")
+        elif b_type == "cards":
+            items = b.get("items", [])
+            cards_html = ""
+            for item in items:
+                icon = item.get("icon", "📌")
+                ititle = item.get("title", "")
+                idesc = item.get("desc", "")
+                cards_html += f"""
+                <div style="background:#FAFAFA;border:1.5px solid #F0F0F0;border-radius:10px;padding:18px;margin-bottom:12px;text-align:left;">
+                  <span style="font-size:26px;display:block;margin-bottom:4px;">{icon}</span>
+                  <strong style="color:#1A1A2E;font-size:15.5px;display:block;margin-bottom:4px;">{ititle}</strong>
+                  <span style="color:#666666;font-size:13.5px;line-height:1.5;display:block;">{idesc}</span>
+                </div>"""
+            rendered_blocks.append(f"""
+            <!-- CARDS BLOCK -->
+            <tr>
+              <td style="background-color:#ffffff;padding:0 36px 28px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                  {cards_html}
+                </div>
+              </td>
+            </tr>""")
+        elif b_type == "highlight":
+            title = b.get("title", "")
+            content = str(b.get("content", "")).replace("\n", "<br>")
+            rendered_blocks.append(f"""
+            <!-- HIGHLIGHT BLOCK -->
+            <tr>
+              <td style="background-color:#ffffff;padding:12px 36px 24px;">
+                <div style="background:#FFF3EB;border-left:4px solid #FF6B35;border-radius:8px;padding:20px 24px;">
+                  <strong style="color:#8A2E0B;font-size:16px;display:block;margin-bottom:6px;">{title}</strong>
+                  <div style="color:#666666;font-size:14.5px;line-height:1.6;">{content}</div>
+                </div>
+              </td>
+            </tr>""")
+        elif b_type == "cta":
+            title = b.get("title", "Leve o Politize para sua escola agora")
+            sub = b.get("subtitle", "Entre em contato e descubra como podemos firmar uma parceria.")
+            btn_text = b.get("button_text", "Entrar em Contato")
+            btn_url = b.get("button_url", "mailto:parceria@politize.com.br")
+            bg = b.get("bg_color", "#FF6B35")
+            rendered_blocks.append(f"""
+            <!-- CTA BANNER BLOCK -->
+            <tr>
+              <td style="background-color:{bg};padding:40px 36px;text-align:center;color:#ffffff;">
+                <h3 style="margin:0 0 10px;font-size:23px;font-weight:700;color:#ffffff;line-height:1.3;">{title}</h3>
+                <p style="margin:0 0 24px;font-size:15px;color:#FFE5D9;">{sub}</p>
+                <a href="{btn_url}" style="background-color:#ffffff;color:#FF6B35;text-decoration:none;padding:13px 32px;border-radius:8px;font-weight:700;font-size:15px;display:inline-block;">{btn_text}</a>
+              </td>
+            </tr>""")
+        elif b_type == "button":
+            text = b.get("button_text", "Clique Aqui")
+            url = b.get("button_url", "https://www.politize.com.br")
+            bg = b.get("bg_color", "#FF6B35")
+            align = b.get("align", "center")
+            rendered_blocks.append(f"""
+            <!-- BUTTON BLOCK -->
+            <tr>
+              <td style="background-color:#ffffff;padding:20px 36px;text-align:{align};">
+                <a href="{url}" style="background-color:{bg};color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:bold;font-size:15px;display:inline-block;">{text}</a>
+              </td>
+            </tr>""")
+        elif b_type == "divider":
+            rendered_blocks.append("""
+            <!-- DIVIDER BLOCK -->
+            <tr>
+              <td style="background-color:#ffffff;padding:8px 36px;">
+                <hr style="border:0;border-top:1px solid #ECECEC;margin:0;">
+              </td>
+            </tr>""")
+        elif b_type == "image":
+            img_url = b.get("image_url", "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800&q=80")
+            alt = b.get("alt", "Banner Politize")
+            link_url = b.get("link_url", "")
+            img_tag = f"""<img src="{img_url}" alt="{alt}" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto;">"""
+            if link_url:
+                img_tag = f"""<a href="{link_url}" style="text-decoration:none;">{img_tag}</a>"""
+            rendered_blocks.append(f"""
+            <!-- IMAGE BLOCK -->
+            <tr>
+              <td style="background-color:#ffffff;padding:18px 36px;text-align:center;">
+                {img_tag}
+              </td>
+            </tr>""")
+        elif b_type == "footer":
+            text = b.get("text", "© 2026 Politize — Educação Política para Todos")
+            unsub_text = b.get("unsubscribe_text", "Descadastrar")
+            privacy_url = b.get("privacy_url", "https://www.politize.com.br/privacidade")
+            rendered_blocks.append(f"""
+            <!-- FOOTER BLOCK -->
+            <tr>
+              <td style="background-color:#1A1A2E;padding:32px 36px;text-align:center;color:#A8B2C8;font-size:12.5px;line-height:1.6;border-radius:0 0 14px 14px;">
+                <div>{text}</div>
+                <div style="margin-top:14px;color:#8592A6;">
+                  <a href="{{{{unsubscribe_url}}}}" style="color:#A8B2C8;text-decoration:underline;">{unsub_text}</a> ·
+                  <a href="{privacy_url}" style="color:#A8B2C8;text-decoration:underline;">Política de Privacidade</a>
+                </div>
+              </td>
+            </tr>""")
+
+    inner_html = "\n".join(rendered_blocks)
+    return f"""<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Politize</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body {{ margin: 0; padding: 0; background-color: #F4F4F5; font-family: Inter, Arial, sans-serif; -webkit-font-smoothing: antialiased; }}
+    table {{ border-collapse: collapse; }}
+    @media only screen and (max-width: 620px) {{
+      .email-container {{ width: 100% !important; border-radius: 0 !important; }}
+    }}
+  </style>
+</head>
+<body style="margin:0;padding:24px 12px;background-color:#F4F4F5;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center">
+        <!-- Container Central -->
+        <table class="email-container" role="presentation" width="100%" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(15,24,48,0.08);" border="0" cellspacing="0" cellpadding="0">
+          {inner_html}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
 DEFAULT_MESSAGE_CONFIG = {
     "from_name": _init_name,
@@ -124,6 +428,7 @@ DEFAULT_MESSAGE_CONFIG = {
     "cta_button_url": "https://www.politize.com.br/contato",
     "footer_note": "© 2026 Politize — Educação Política para Todos",
     "custom_html": "",
+    "blocks": DEFAULT_BLOCKS,
 }
 
 def get_message_config() -> dict:
@@ -142,12 +447,16 @@ def save_message_config(cfg: dict):
 _COMPILED_HTML: str = ""
 
 def build_template_from_config(cfg: dict) -> str:
-    """Aplica as mensagens personalizadas ao template base compilado."""
-    # Se houver custom_html explícito definido pelo usuário, utiliza diretamente
+    """Aplica a montagem por blocos visuais arrastáveis ou o template base compilado."""
+    # 1. Se houver layout construído por blocos arrastáveis:
+    if cfg.get("blocks") and isinstance(cfg["blocks"], list) and len(cfg["blocks"]) > 0:
+        return compile_blocks_to_html(cfg["blocks"])
+
+    # 2. Se houver custom_html explícito definido pelo usuário, utiliza diretamente:
     if cfg.get("custom_html") and cfg["custom_html"].strip():
         return cfg["custom_html"]
 
-    # Carrega o HTML base compilado do MJML
+    # 3. Carrega o HTML base compilado do MJML:
     base_html = ""
     tpl_path = Path(CONFIG["template_path"])
     cached_html = tpl_path.with_suffix(".html")
@@ -160,28 +469,10 @@ def build_template_from_config(cfg: dict) -> str:
             pass
 
     if not base_html:
-        base_html = """<!doctype html><html><head><meta charset="utf-8"><title>Politize</title></head>
-        <body style="font-family:sans-serif;background:#F4F4F5;padding:40px;color:#16213E;">
-          <div style="max-width:600px;margin:auto;background:#fff;padding:32px;border-radius:12px;">
-            <h1 style="color:#FF6B35;">⚖️ POLITIZE</h1>
-            <p style="font-weight:600;color:#FF6B35;text-transform:uppercase;">{{hero_tag}}</p>
-            <h2>{{hero_title}}</h2>
-            <p style="font-size:18px;color:#555;">{{hero_subtitle}}</p>
-            <p style="font-size:16px;line-height:1.6;color:#333;">{{main_message}}</p>
-            <div style="text-align:center;margin:30px 0;">
-              <a href="{{hero_button_url}}" style="background:#FF6B35;color:#fff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">{{hero_button_text}}</a>
-            </div>
-            <div style="background:#FFF3EB;padding:24px;border-radius:10px;text-align:center;margin-top:30px;">
-              <h3 style="margin:0 0 8px;color:#8A2E0B;">{{cta_title}}</h3>
-              <p style="margin:0 0 16px;color:#666;">{{cta_subtitle}}</p>
-              <a href="{{cta_button_url}}" style="background:#8A2E0B;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:bold;">{{cta_button_text}}</a>
-            </div>
-          </div>
-        </body></html>"""
+        base_html = compile_blocks_to_html(DEFAULT_BLOCKS)
 
     # Injeta os textos customizados no HTML
     html = base_html
-    # Substituições de campos-chave
     if cfg.get("hero_subtitle"):
         html = re.sub(
             r"(<mj-text[^>]*>|\b)Transforme a forma como sua escola enxerga a política(<\/mj-text>|\b)",
@@ -238,18 +529,18 @@ def load_template_html() -> str:
 # Dados mock de demonstração para quando o Google Sheets não estiver configurado
 # ---------------------------------------------------------------------------
 MOCK_RECIPIENTS = [
-    {"row": 2, "nome": "Ana Luiza Barbosa", "email": "ana.barbosa@escola-darcy.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:22"},
-    {"row": 3, "nome": "Bruno Ribeiro", "email": "bruno.ribeiro@lourenco-filho.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:24"},
-    {"row": 4, "nome": "Carla Nogueira", "email": "carla.nogueira@paulo-freire.example.br", "status": "", "data_envio": ""},
-    {"row": 5, "nome": "Daniel Teixeira", "email": "daniel.teixeira@anisio-teixeira.example.br", "status": "", "data_envio": ""},
-    {"row": 6, "nome": "Elisa Duarte", "email": "elisa.duarte@cecilia-meireles.example.br", "status": "", "data_envio": ""},
-    {"row": 7, "nome": "Fábio Guimarães", "email": "fabio.guimaraes@machado-assis.example.br", "status": "", "data_envio": ""},
-    {"row": 8, "nome": "Gabriela Ferraz", "email": "gabriela.ferraz@cora-coralina.example.br", "status": "", "data_envio": ""},
-    {"row": 9, "nome": "Heitor Esteves", "email": "heitor.esteves@rui-barbosa.example.br", "status": "", "data_envio": ""},
-    {"row": 10, "nome": "Isabela Pacheco", "email": "isabela.pacheco@monteiro-lobato.example.br", "status": "", "data_envio": ""},
-    {"row": 11, "nome": "João Queiroz", "email": "joao.queiroz@jose-alencar.example.br", "status": "", "data_envio": ""},
-    {"row": 12, "nome": "Karina Vasconcelos", "email": "karina.vasconcelos@drummond.example.br", "status": "", "data_envio": ""},
-    {"row": 13, "nome": "Lucas Junqueira", "email": "lucas.junqueira@clarice-lispector.example.br", "status": "", "data_envio": ""},
+    {"row": 2, "nome": "Ana Luiza Barbosa", "email": "ana.barbosa@escola-darcy.example.br", "empresa": "Escola Darcy Ribeiro", "email_empresa": "contato@escola-darcy.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:22"},
+    {"row": 3, "nome": "Bruno Ribeiro", "email": "bruno.ribeiro@lourenco-filho.example.br", "empresa": "Colégio Lourenço Filho", "email_empresa": "direcao@lourenco-filho.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:24"},
+    {"row": 4, "nome": "Carla Nogueira", "email": "carla.nogueira@paulo-freire.example.br", "empresa": "Instituto Paulo Freire", "email_empresa": "secretaria@paulo-freire.example.br", "status": "", "data_envio": ""},
+    {"row": 5, "nome": "Daniel Teixeira", "email": "daniel.teixeira@anisio-teixeira.example.br", "empresa": "Escola Anísio Teixeira", "email_empresa": "pedagogico@anisio-teixeira.example.br", "status": "", "data_envio": ""},
+    {"row": 6, "nome": "Elisa Duarte", "email": "elisa.duarte@cecilia-meireles.example.br", "empresa": "Colégio Cecília Meireles", "email_empresa": "adm@cecilia-meireles.example.br", "status": "", "data_envio": ""},
+    {"row": 7, "nome": "Fábio Guimarães", "email": "fabio.guimaraes@machado-assis.example.br", "empresa": "Liceu Machado de Assis", "email_empresa": "faleconosco@machado-assis.example.br", "status": "", "data_envio": ""},
+    {"row": 8, "nome": "Gabriela Ferraz", "email": "gabriela.ferraz@cora-coralina.example.br", "empresa": "Escola Cora Coralina", "email_empresa": "contato@cora-coralina.example.br", "status": "", "data_envio": ""},
+    {"row": 9, "nome": "Heitor Esteves", "email": "heitor.esteves@rui-barbosa.example.br", "empresa": "Instituto Rui Barbosa", "email_empresa": "info@rui-barbosa.example.br", "status": "", "data_envio": ""},
+    {"row": 10, "nome": "Isabela Pacheco", "email": "isabela.pacheco@monteiro-lobato.example.br", "empresa": "Colégio Monteiro Lobato", "email_empresa": "coord@monteiro-lobato.example.br", "status": "", "data_envio": ""},
+    {"row": 11, "nome": "João Queiroz", "email": "joao.queiroz@jose-alencar.example.br", "empresa": "Escola José de Alencar", "email_empresa": "secretaria@jose-alencar.example.br", "status": "", "data_envio": ""},
+    {"row": 12, "nome": "Karina Vasconcelos", "email": "karina.vasconcelos@drummond.example.br", "empresa": "Colégio Carlos Drummond", "email_empresa": "contato@drummond.example.br", "status": "", "data_envio": ""},
+    {"row": 13, "nome": "Lucas Junqueira", "email": "lucas.junqueira@clarice-lispector.example.br", "empresa": "Liceu Clarice Lispector", "email_empresa": "diretoria@clarice-lispector.example.br", "status": "", "data_envio": ""},
 ]
 
 
@@ -322,12 +613,16 @@ class SendRequest(BaseModel):
 class AddRecipientRequest(BaseModel):
     nome: str = Field(..., min_length=2, max_length=150, description="Nome do destinatário")
     email: EmailStr = Field(..., description="E-mail válido do destinatário")
+    empresa: Optional[str] = Field("", max_length=150, description="Nome da empresa ou escola")
+    email_empresa: Optional[str] = Field("", max_length=254, description="E-mail corporativo ou institucional da empresa")
 
 
 class RecipientItem(BaseModel):
     row: int
     nome: str
     email: str
+    empresa: Optional[str] = ""
+    email_empresa: Optional[str] = ""
     status: str
     data_envio: str
 
@@ -360,6 +655,7 @@ class TemplateUpdateRequest(BaseModel):
     cta_button_text: Optional[str] = None
     cta_button_url: Optional[str] = None
     custom_html: Optional[str] = None
+    blocks: Optional[list[dict]] = None
 
     @field_validator("subject")
     @classmethod
@@ -367,6 +663,11 @@ class TemplateUpdateRequest(BaseModel):
         if v and ("\r" in v or "\n" in v):
             raise ValueError("O assunto não pode conter quebras de linha (CRLF).")
         return v.strip() if v else v
+
+
+class UnsubscribePayload(BaseModel):
+    email: EmailStr = Field(..., description="E-mail a ser descadastrado ou reativado")
+    token: Optional[str] = Field(None, description="Token de segurança HMAC")
 
 
 # ---------------------------------------------------------------------------
@@ -394,10 +695,12 @@ async def get_health():
     has_sheet = bool(CONFIG["spreadsheet_id"] and not CONFIG["spreadsheet_id"].startswith("1Bxi..."))
     msg_cfg = get_message_config()
 
+    sheet_url = f"https://docs.google.com/spreadsheets/d/{CONFIG['spreadsheet_id']}/edit" if CONFIG["spreadsheet_id"] else ""
+
     return {
         "status": "ok",
         "app_name": "Politize Mailer",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "services": {
             "resend": {
@@ -409,11 +712,12 @@ async def get_health():
                 "credentials_file": str(creds_file.name),
                 "credentials_found": creds_exist,
                 "spreadsheet_id": CONFIG["spreadsheet_id"][:6] + "..." if CONFIG["spreadsheet_id"] else "",
+                "spreadsheet_url": sheet_url,
                 "sheet_name": CONFIG["sheet_name"],
             },
             "template": {
                 "loaded": bool(_COMPILED_HTML),
-                "type": "Personalizado" if msg_cfg.get("custom_html") else "MJML Compilado",
+                "type": "Blocos Visuais" if msg_cfg.get("blocks") else ("Personalizado" if msg_cfg.get("custom_html") else "MJML Compilado"),
             },
         },
         "default_mode": "dry_run" if CONFIG["dry_run"] else "live",
@@ -450,11 +754,11 @@ async def list_recipients():
             source="sheets",
             recipients=items,
         )
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         return RecipientsResponse(
             total=len(MOCK_RECIPIENTS),
             source="demo",
-            warning=f"Credenciais não encontradas: {e}. Usando dados de exemplo.",
+            warning="Arquivo de credenciais não encontrado. Usando dados de exemplo.",
             recipients=[RecipientItem(**r) for r in MOCK_RECIPIENTS],
         )
     except Exception as e:
@@ -462,7 +766,7 @@ async def list_recipients():
         return RecipientsResponse(
             total=len(MOCK_RECIPIENTS),
             source="demo",
-            warning=f"Falha ao conectar com o Google Sheets ({e}). Modo demonstração ativo.",
+            warning="Falha ao conectar com o Google Sheets. Modo demonstração ativo.",
             recipients=[RecipientItem(**r) for r in MOCK_RECIPIENTS],
         )
 
@@ -470,7 +774,7 @@ async def list_recipients():
 @app.post("/api/recipients", tags=["Destinatários"])
 async def create_recipient(payload: AddRecipientRequest):
     """
-    Adiciona 1 novo e-mail/destinatário para entrar na lista de disparos:
+    Adiciona 1 novo e-mail/destinatário com nome da empresa e email da empresa:
     - Se conectado ao Google Sheets, grava uma nova linha na planilha oficial.
     - Se estiver em modo demonstração, adiciona à lista da sessão em memória.
     """
@@ -479,6 +783,8 @@ async def create_recipient(payload: AddRecipientRequest):
     
     clean_name = payload.nome.strip()
     clean_email = str(payload.email).strip().lower()
+    clean_empresa = (payload.empresa or "").strip()
+    clean_email_empresa = (payload.email_empresa or "").strip().lower()
 
     if is_live_sheet:
         try:
@@ -492,8 +798,10 @@ async def create_recipient(payload: AddRecipientRequest):
                 str(creds_file),
                 CONFIG["spreadsheet_id"],
                 CONFIG["sheet_name"],
-                clean_name,
-                clean_email,
+                nome=clean_name,
+                email=clean_email,
+                empresa=clean_empresa,
+                email_empresa=clean_email_empresa,
             )
             return {"status": "ok", "recipient": new_item, "source": "sheets"}
         except HTTPException:
@@ -513,6 +821,8 @@ async def create_recipient(payload: AddRecipientRequest):
             "row": next_row,
             "nome": clean_name,
             "email": clean_email,
+            "empresa": clean_empresa,
+            "email_empresa": clean_email_empresa,
             "status": "",
             "data_envio": "",
         }
@@ -524,7 +834,9 @@ async def create_recipient(payload: AddRecipientRequest):
 @app.post("/api/send", response_model=SendResponse, tags=["Envio"])
 async def send_single(payload: SendRequest):
     """
-    Processa o envio de um e-mail individual com validação anti-tampering:
+    Processa o envio de um e-mail individual com validação anti-tampering e bloqueio de opt-out:
+    - Destinatários descadastrados são estritamente rejeitados.
+    - Injeta a URL de descadastro personalizada com token HMAC.
     - Em modo dry_run=True, simula o envio sem consumir créditos nem gravar na planilha.
     - Em modo real, dispara pela API do Resend e registra status na planilha.
     """
@@ -555,9 +867,27 @@ async def send_single(payload: SendRequest):
             detail="O e-mail informado não corresponde ao cadastrado nesta linha.",
         )
 
-    # 2. Renderiza o template oficial
+    # Bloqueio de e-mails descadastrados (Opt-out)
+    target_status = str(target.get("status", "")).strip().lower()
+    if target_status in ("descadastrado", "optout", "opt-out"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"O destinatário '{payload.email}' solicitou descadastro e não pode receber novos envios.",
+        )
+
+    # 2. Renderiza o template oficial com URL de descadastro e variáveis
+    unsub_token = generate_unsubscribe_token(target["email"])
+    unsub_url = f"{CONFIG['app_base_url']}/api/unsubscribe?email={target['email']}&token={unsub_token}"
     html_template = load_template_html()
-    rendered_html = render_template(html_template, {"nome": target["nome"]})
+    rendered_html = render_template(
+        html_template,
+        {
+            "nome": target["nome"],
+            "empresa": target.get("empresa", ""),
+            "email_empresa": target.get("email_empresa", ""),
+            "unsubscribe_url": unsub_url,
+        },
+    )
 
     # 3. Disparo ou simulação
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -612,6 +942,186 @@ async def send_single(payload: SendRequest):
 
 
 # ---------------------------------------------------------------------------
+# ROTAS DE DESCADASTRO (UNSUBSCRIBE & RESUBSCRIBE)
+# ---------------------------------------------------------------------------
+
+@app.get("/unsubscribe", response_class=HTMLResponse, tags=["Descadastro"], include_in_schema=False)
+@app.get("/api/unsubscribe", response_class=HTMLResponse, tags=["Descadastro"])
+async def unsubscribe_page(
+    email: str = Query(..., min_length=3, max_length=254, description="E-mail a ser descadastrado"),
+    token: Optional[str] = Query(None, description="Token de segurança HMAC"),
+):
+    """
+    Página oficial de descadastro acessada diretamente pelo botão no e-mail:
+    - Atualiza imediatamente o status para 'Descadastrado' no Google Sheets (ou dados de sessão).
+    - Exibe uma interface amigável com opção para reativar caso tenha clicado por engano.
+    """
+    clean_email = email.strip().lower()
+    safe_email = html_lib.escape(clean_email)
+    creds_file = BASE_DIR / CONFIG["credentials_path"]
+    is_live_sheet = creds_file.exists() and bool(CONFIG["spreadsheet_id"])
+
+    # Executa o descadastro
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    updated = False
+
+    if is_live_sheet:
+        try:
+            updated = unsubscribe_recipient(str(creds_file), CONFIG["spreadsheet_id"], CONFIG["sheet_name"], clean_email, timestamp=timestamp)
+        except Exception as e:
+            logger.error(f"Erro ao processar descadastro na planilha para {clean_email}: {e}")
+    else:
+        # Modo demonstração
+        for r in MOCK_RECIPIENTS:
+            if r["email"].lower() == clean_email:
+                r["status"] = "Descadastrado"
+                r["data_envio"] = timestamp
+                updated = True
+                break
+
+    logger.info(f"Descadastro processado para {clean_email} (Atualizado na planilha: {updated})")
+
+    resub_token = token or generate_unsubscribe_token(clean_email)
+
+    page_html = f"""<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inscrição Cancelada — Politize</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {{
+      margin: 0; background-color: #F4F4F5; font-family: 'Instrument Sans', system-ui, sans-serif;
+      display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box;
+      color: #16213E;
+    }}
+    .card {{
+      background: #ffffff; border-radius: 16px; padding: 40px 32px; max-width: 480px; width: 100%;
+      text-align: center; box-shadow: 0 10px 30px rgba(15,24,48,0.08); border: 1px solid #E2E6EF;
+    }}
+    .badge {{
+      display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px;
+      border-radius: 50%; background: #DDF1EA; color: #17795E; font-size: 26px; margin-bottom: 20px;
+    }}
+    h1 {{ font-size: 24px; font-weight: 700; margin: 0 0 12px; color: #16213E; }}
+    p {{ font-size: 15px; color: #5A6682; line-height: 1.6; margin: 0 0 24px; }}
+    .email-box {{
+      background: #FAFBFD; border: 1px solid #D9DEE8; border-radius: 8px; padding: 10px 14px;
+      font-weight: 600; font-size: 14.5px; color: #16213E; margin-bottom: 24px; word-break: break-all;
+    }}
+    .btn {{
+      display: inline-block; background: #FF6B35; color: #ffffff; text-decoration: none; padding: 12px 24px;
+      border-radius: 8px; font-weight: 600; font-size: 14.5px; cursor: pointer; border: 0; transition: background .2s;
+    }}
+    .btn:hover {{ background: #E8551F; }}
+    .btn-secondary {{
+      background: transparent; color: #5A6682; border: 1px solid #D9DEE8; margin-top: 10px;
+    }}
+    .btn-secondary:hover {{ background: #F2F4F8; color: #16213E; }}
+    .status-msg {{ margin-top: 18px; font-size: 14px; font-weight: 600; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">✓</div>
+    <h1>Inscrição Cancelada</h1>
+    <p>Você foi descadastrado(a) com sucesso da nossa lista de contatos educacionais.</p>
+    <div class="email-box">{safe_email}</div>
+    <p style="font-size:13.5px;margin-bottom:20px;">Você não receberá mais e-mails desta automação. O status já foi registrado em nossa planilha oficial.</p>
+    
+    <div id="actionArea">
+      <button class="btn btn-secondary" id="resubBtn" type="button">Foi um engano? Quero me reinscrever</button>
+      <div id="statusResult" class="status-msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("resubBtn").addEventListener("click", async () => {{
+      const btn = document.getElementById("resubBtn");
+      const st = document.getElementById("statusResult");
+      btn.disabled = true;
+      btn.textContent = "Reativando...";
+      try {{
+        const res = await fetch("/api/resubscribe", {{
+          method: "POST",
+          headers: {{ "Content-Type": "application/json" }},
+          body: JSON.stringify({{ email: "{clean_email}", token: "{resub_token}" }})
+        }});
+        if (!res.ok) throw new Error("Falha ao reativar");
+        st.style.display = "block";
+        st.style.color = "#17795E";
+        st.textContent = "✓ Inscrição reativada com sucesso! Você voltará a receber nossos comunicados.";
+        btn.style.display = "none";
+      }} catch (e) {{
+        st.style.display = "block";
+        st.style.color = "#B42342";
+        st.textContent = "Erro ao reativar: " + e.message;
+        btn.disabled = false;
+        btn.textContent = "Tentar novamente";
+      }}
+    }});
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(content=page_html, status_code=200)
+
+
+@app.post("/api/unsubscribe", tags=["Descadastro"])
+async def api_unsubscribe(payload: UnsubscribePayload):
+    """Endpoint da API para efetuar o descadastro programático de um destinatário."""
+    clean_email = payload.email.strip().lower()
+    creds_file = BASE_DIR / CONFIG["credentials_path"]
+    is_live_sheet = creds_file.exists() and bool(CONFIG["spreadsheet_id"])
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    updated = False
+
+    if is_live_sheet:
+        try:
+            updated = unsubscribe_recipient(str(creds_file), CONFIG["spreadsheet_id"], CONFIG["sheet_name"], clean_email, timestamp=timestamp)
+        except Exception as e:
+            logger.error(f"Erro ao descadastrar na planilha: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro na planilha: {e}")
+    else:
+        for r in MOCK_RECIPIENTS:
+            if r["email"].lower() == clean_email:
+                r["status"] = "Descadastrado"
+                r["data_envio"] = timestamp
+                updated = True
+                break
+
+    return {"status": "ok", "message": f"Destinatário '{clean_email}' descadastrado com sucesso.", "updated": updated}
+
+
+@app.post("/api/resubscribe", tags=["Descadastro"])
+async def api_resubscribe(payload: UnsubscribePayload):
+    """Reativa a inscrição de um destinatário que havia sido descadastrado."""
+    clean_email = payload.email.strip().lower()
+    creds_file = BASE_DIR / CONFIG["credentials_path"]
+    is_live_sheet = creds_file.exists() and bool(CONFIG["spreadsheet_id"])
+    updated = False
+
+    if is_live_sheet:
+        try:
+            updated = resubscribe_recipient(str(creds_file), CONFIG["spreadsheet_id"], CONFIG["sheet_name"], clean_email)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erro na planilha: {e}")
+    else:
+        for r in MOCK_RECIPIENTS:
+            if r["email"].lower() == clean_email:
+                r["status"] = ""
+                r["data_envio"] = ""
+                updated = True
+                break
+
+    return {"status": "ok", "message": f"Inscrição de '{clean_email}' reativada com sucesso.", "updated": updated}
+
+
+# ---------------------------------------------------------------------------
 # GESTÃO DO MODELO DE E-MAIL E DISPLAY
 # ---------------------------------------------------------------------------
 
@@ -658,14 +1168,28 @@ async def reset_template_settings():
 
 
 @app.get("/api/preview", response_class=HTMLResponse, tags=["Prévia"])
-async def preview_email(nome: str = Query("Educador(a)", max_length=100)):
+async def preview_email(
+    nome: str = Query("Educador(a)", max_length=100),
+    empresa: Optional[str] = Query("", max_length=150),
+):
     """
-    Retorna o HTML real compilado do template com o nome do destinatário interpolado.
+    Retorna o HTML real compilado do template com as variáveis do destinatário e link funcional de descadastro.
     Ideal para exibição em iframe no frontend.
     """
     safe_name = html_lib.escape(nome.strip() or "Educador(a)")
+    safe_empresa = html_lib.escape(empresa.strip() or "Sua Escola")
+    unsub_token = generate_unsubscribe_token("exemplo@escola.edu.br")
+    unsub_url = f"{CONFIG['app_base_url']}/api/unsubscribe?email=exemplo@escola.edu.br&token={unsub_token}"
     template = load_template_html()
-    rendered = render_template(template, {"nome": safe_name})
+    rendered = render_template(
+        template,
+        {
+            "nome": safe_name,
+            "empresa": safe_empresa,
+            "email_empresa": "contato@escola.edu.br",
+            "unsubscribe_url": unsub_url,
+        },
+    )
     return HTMLResponse(content=rendered, status_code=200)
 
 

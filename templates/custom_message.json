@@ -1,0 +1,94 @@
+{
+  "from_name": "Politize",
+  "from_email": "onboarding@resend.dev",
+  "subject": "Conheça o Politize — Educação Política para sua Escola",
+  "preheader": "Educação política acessível para todos — veja como o Politize pode transformar sua escola!",
+  "hero_tag": "Parceria Educacional",
+  "hero_title": "Olá, {{nome}}! 👋",
+  "hero_subtitle": "Transforme a forma como sua escola enxerga a política",
+  "hero_button_text": "Saiba Mais →",
+  "hero_button_url": "https://www.politize.com.br",
+  "main_message": "Sabemos que falar sobre política nas escolas pode ser um desafio — por isso o Politize existe: para tornar esse assunto acessível, imparcial e engajante para jovens de todo o Brasil.",
+  "section_title": "O que oferecemos à sua escola:",
+  "cta_title": "Leve o Politize para sua escola agora",
+  "cta_subtitle": "Entre em contato e descubra como podemos firmar uma parceria.",
+  "cta_button_text": "Entrar em Contato",
+  "cta_button_url": "https://www.politize.com.br/contato",
+  "footer_note": "© 2026 Politize — Educação Política para Todos",
+  "custom_html": "",
+  "blocks": [
+    {
+      "id": "block_header",
+      "type": "header",
+      "name": "Cabeçalho com Logo",
+      "title": "⚖️ POLITIZE",
+      "subtitle": "Educação Política para Todos",
+      "bg_color": "#1A1A2E",
+      "text_color": "#FFFFFF"
+    },
+    {
+      "id": "block_hero",
+      "type": "hero",
+      "name": "Banner Hero Principal",
+      "tag": "Parceria Educacional",
+      "title": "Olá, {{nome}}! 👋",
+      "subtitle": "Transforme a forma como sua escola enxerga a política",
+      "button_text": "Saiba Mais →",
+      "button_url": "https://www.politize.com.br",
+      "bg_color": "#16213E"
+    },
+    {
+      "id": "block_text",
+      "type": "text",
+      "name": "Mensagem Principal",
+      "section_title": "O que oferecemos à sua escola:",
+      "content": "Sabemos que falar sobre política nas escolas pode ser um desafio — por isso o Politize existe: para tornar esse assunto acessível, imparcial e engajante para jovens de todo o Brasil.",
+      "align": "left"
+    },
+    {
+      "id": "block_cards",
+      "type": "cards",
+      "name": "Cards de Benefícios",
+      "items": [
+        {
+          "icon": "📚",
+          "title": "Conteúdo Gratuito",
+          "desc": "Mais de 500 artigos e vídeos sobre política, direito e cidadania — sem custo para a escola."
+        },
+        {
+          "icon": "🎯",
+          "title": "Conteúdo Imparcial",
+          "desc": "Abordagem apartidária, baseada em fatos e pensamento crítico para os alunos."
+        },
+        {
+          "icon": "🤝",
+          "title": "Parceria Educacional",
+          "desc": "Suporte pedagógico e materiais adaptados para o currículo escolar."
+        },
+        {
+          "icon": "🚀",
+          "title": "Impacto Real",
+          "desc": "Mais de 2 milhões de jovens impactados em todo o Brasil."
+        }
+      ]
+    },
+    {
+      "id": "block_cta",
+      "type": "cta",
+      "name": "Chamada para Ação (CTA)",
+      "title": "Leve o Politize para sua escola agora",
+      "subtitle": "Entre em contato e descubra como podemos firmar uma parceria.",
+      "button_text": "Entrar em Contato",
+      "button_url": "mailto:parceria@politize.com.br",
+      "bg_color": "#FF6B35"
+    },
+    {
+      "id": "block_footer",
+      "type": "footer",
+      "name": "Rodapé com Descadastro",
+      "text": "© 2026 Politize — Educação Política para Todos<br>Você está recebendo este e-mail porque sua instituição pode se beneficiar de nossa parceria.",
+      "unsubscribe_text": "Descadastrar",
+      "privacy_url": "https://www.politize.com.br/privacidade"
+    }
+  ]
+}

@@ -166,7 +166,7 @@
           Você está recebendo este e-mail porque sua escola pode se beneficiar de nossa parceria.
         </mj-text>
         <mj-text align="center" font-size="12px" color="#666666" padding-top="12px" css-class="unsubscribe-link">
-          <a href="#" style="color:#666666;">Descadastrar</a> ·
+          <a href="{{unsubscribe_url}}" style="color:#666666;">Descadastrar</a> ·
           <a href="https://www.politize.com.br/privacidade" style="color:#666666;">Política de Privacidade</a>
         </mj-text>
       </mj-column>

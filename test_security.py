@@ -37,11 +37,73 @@ os.environ["ALLOWED_ORIGINS"] = "http://localhost:8000,http://127.0.0.1:8000"
 from api import app, load_template_html
 from email_sender import render_template
 
+_MOCK_SHEET_DATA = [
+    {"row": 2, "nome": "Ana Luiza Barbosa", "email": "ana.barbosa@escola-darcy.example.br", "empresa": "Escola Darcy", "email_empresa": "contato@escola-darcy.example.br", "status": "", "data_envio": ""},
+    {"row": 3, "nome": "Bruno Ribeiro", "email": "bruno.ribeiro@lourenco-filho.example.br", "empresa": "Colégio Lourenço", "email_empresa": "direcao@lourenco-filho.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:24"},
+]
+
+@pytest.fixture(autouse=True)
+def mock_sheets_api():
+    """Mocka as chamadas externas ao Google Sheets para garantir isolamento e testes determinísticos."""
+    sheet_data = [dict(r) for r in _MOCK_SHEET_DATA]
+    
+    def fake_get_recipients(*args, **kwargs):
+        return sheet_data
+
+    def fake_add_recipient(creds, sheet_id, sheet_name, nome, email, empresa="", email_empresa=""):
+        next_row = max((r["row"] for r in sheet_data), default=1) + 1
+        item = {
+            "row": next_row,
+            "nome": nome,
+            "email": email,
+            "empresa": empresa,
+            "email_empresa": email_empresa,
+            "status": "",
+            "data_envio": "",
+        }
+        sheet_data.append(item)
+        return item
+
+    def fake_mark_as_sent(*args, **kwargs):
+        return None
+
+    def fake_unsubscribe_recipient(creds, sheet_id, sheet_name, email, timestamp=None):
+        for r in sheet_data:
+            if r["email"].lower() == email.lower():
+                r["status"] = "Descadastrado"
+                r["data_envio"] = timestamp or "2026-11-23 18:00:00"
+                return True
+        return False
+
+    def fake_resubscribe_recipient(creds, sheet_id, sheet_name, email):
+        for r in sheet_data:
+            if r["email"].lower() == email.lower():
+                r["status"] = ""
+                r["data_envio"] = ""
+                return True
+        return False
+
+    with (
+        patch("api.get_recipients", side_effect=fake_get_recipients),
+        patch("api.add_recipient", side_effect=fake_add_recipient),
+        patch("api.mark_as_sent", side_effect=fake_mark_as_sent),
+        patch("api.unsubscribe_recipient", side_effect=fake_unsubscribe_recipient),
+        patch("api.resubscribe_recipient", side_effect=fake_resubscribe_recipient),
+    ):
+        yield
+
 @pytest.fixture(scope="module")
 def client():
     """TestClient configurado para testes de integração."""
+    from api import TEMPLATE_CONFIG_FILE, load_template_html
+    if TEMPLATE_CONFIG_FILE.exists():
+        TEMPLATE_CONFIG_FILE.unlink(missing_ok=True)
+    load_template_html()
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
+    if TEMPLATE_CONFIG_FILE.exists():
+        TEMPLATE_CONFIG_FILE.unlink(missing_ok=True)
+    load_template_html()
 
 
 # ===========================================================================
@@ -327,4 +389,180 @@ class TestTemplateManagement:
         r = client.post("/api/template/reset")
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
+
+
+# ===========================================================================
+# 10. TESTES DE FUNCIONALIDADE E SEGURANÇA: DESCADASTRO (UNSUBSCRIBE)
+# ===========================================================================
+class TestUnsubscribeFeature:
+    """Valida o ciclo completo do botão de descadastrar nos e-mails e a proteção contra novos envios."""
+
+    def test_pagina_descadastro_renderiza_e_atualiza_status(self, client):
+        email_teste = "ana.barbosa@escola-darcy.example.br"
+        r = client.get(f"/api/unsubscribe?email={email_teste}")
+        assert r.status_code == 200
+        assert "text/html" in r.headers.get("content-type", "")
+        assert "Inscrição Cancelada" in r.text
+        assert email_teste in r.text
+        assert "Reativar" in r.text or "reinscrever" in r.text
+
+    def test_bloqueia_envio_para_descadastrado(self, client):
+        # Primeiro descadastra
+        email_teste = "ana.barbosa@escola-darcy.example.br"
+        client.get(f"/api/unsubscribe?email={email_teste}")
+
+        # Tenta disparar e-mail para este destinatário na linha 2
+        payload = {
+            "row": 2,
+            "email": email_teste,
+            "dry_run": True,
+            "subject": "Tentativa para Descadastrado"
+        }
+        r = client.post("/api/send", json=payload)
+        assert r.status_code == 400
+        assert "descadastro" in r.json()["detail"].lower()
+
+    def test_reativa_inscricao(self, client):
+        email_teste = "ana.barbosa@escola-darcy.example.br"
+        # Descadastra
+        client.get(f"/api/unsubscribe?email={email_teste}")
+
+        # Reativa via API
+        r = client.post("/api/resubscribe", json={"email": email_teste})
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+        # Agora o envio deve ser permitido novamente
+        payload = {
+            "row": 2,
+            "email": email_teste,
+            "dry_run": True,
+            "subject": "Tentativa após Reativação"
+        }
+        r2 = client.post("/api/send", json=payload)
+        assert r2.status_code == 200
+
+    def test_token_hmac_validacao(self):
+        from api import generate_unsubscribe_token, verify_unsubscribe_token
+        email = "professor@escola.gov.br"
+        token = generate_unsubscribe_token(email)
+        assert len(token) >= 16
+        assert verify_unsubscribe_token(email, token) is True
+        assert verify_unsubscribe_token(email, "token_falsificado_123") is False
+        assert verify_unsubscribe_token("outro@escola.com", token) is False
+
+    def test_link_descadastro_injetado_no_email(self):
+        html_input = '<p>Olá, {{nome}}!</p><a href="#">Descadastrar</a>'
+        unsub_link = "https://politize.org/api/unsubscribe?email=teste@escola.com"
+        rendered = render_template(html_input, {"nome": "Gabriel", "unsubscribe_url": unsub_link})
+        assert unsub_link in rendered
+        assert 'href="#"' not in rendered
+
+
+# ===========================================================================
+# 11. TESTES DE FUNCIONALIDADE: EMPRESA E LINK DA PLANILHA
+# ===========================================================================
+class TestCompanyAndSpreadsheetLink:
+    """Valida gravação e leitura de Empresa e link da planilha no backend."""
+
+    def test_adiciona_destinatario_com_empresa_e_email_empresa(self, client):
+        payload = {
+            "nome": "Carlos Drummond",
+            "email": "carlos.drummond@escola-estadual.br",
+            "empresa": "Escola Estadual Drummond",
+            "email_empresa": "contato@escola-estadual.br",
+        }
+        r = client.post("/api/recipients", json=payload)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["recipient"]["empresa"] == "Escola Estadual Drummond"
+        assert data["recipient"]["email_empresa"] == "contato@escola-estadual.br"
+
+    def test_lista_destinatarios_contem_empresa(self, client):
+        r = client.get("/api/recipients")
+        assert r.status_code == 200
+        items = r.json()["recipients"]
+        assert len(items) >= 2
+        first = items[0]
+        assert "empresa" in first
+        assert "email_empresa" in first
+
+    def test_health_contem_spreadsheet_url(self, client):
+        r = client.get("/api/health")
+        assert r.status_code == 200
+        data = r.json()
+        gs = data["services"]["google_sheets"]
+        assert "spreadsheet_url" in gs
+        assert "https://docs.google.com/spreadsheets/d/" in gs["spreadsheet_url"]
+
+
+# ===========================================================================
+# 12. TESTES DE FUNCIONALIDADE: CONSTRUTOR DE LAYOUT POR BLOCOS
+# ===========================================================================
+class TestBlockLayoutBuilder:
+    """Valida o funcionamento do construtor de layout arrastável por blocos."""
+
+    def test_salvar_layout_com_blocos_arrastaveis(self, client):
+        custom_blocks = [
+            {
+                "id": "blk_1",
+                "type": "header",
+                "name": "Cabeçalho Teste",
+                "title": "POLITIZE ESCOLAS",
+                "subtitle": "Educação Cidadã",
+                "bg_color": "#0F1830",
+                "text_color": "#FFFFFF",
+            },
+            {
+                "id": "blk_2",
+                "type": "hero",
+                "name": "Hero Teste",
+                "tag": "Destaque",
+                "title": "Olá, {{nome}}!",
+                "subtitle": "Parceria com {{empresa}}",
+                "button_text": "Acessar Plataforma",
+                "button_url": "https://politize.com.br",
+            },
+            {
+                "id": "blk_3",
+                "type": "footer",
+                "name": "Rodapé Teste",
+                "text": "© 2026 Politize",
+                "unsubscribe_text": "Cancelar Inscrição",
+            }
+        ]
+        r = client.post("/api/template", json={"blocks": custom_blocks})
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+        # Confere se a prévia utiliza os novos blocos
+        prev = client.get("/api/preview?nome=Fuji&empresa=Escola%20Central")
+        assert prev.status_code == 200
+        assert "POLITIZE ESCOLAS" in prev.text
+        assert "Fuji" in prev.text
+        assert "Escola Central" in prev.text
+        assert "Cancelar Inscrição" in prev.text
+
+    def test_reordenar_blocos_muda_estrutura_do_html(self, client):
+        # Bloco de rodapé antes do hero
+        reversed_blocks = [
+            {"id": "b_foot", "type": "footer", "name": "Rodapé", "text": "RODAPÉ_NO_TOPO"},
+            {"id": "b_hero", "type": "hero", "name": "Hero", "title": "HERO_NO_FIM", "tag": "TAG"},
+        ]
+        client.post("/api/template", json={"blocks": reversed_blocks})
+        prev = client.get("/api/preview?nome=Teste")
+        pos_rodape = prev.text.find("RODAPÉ_NO_TOPO")
+        pos_hero = prev.text.find("HERO_NO_FIM")
+        assert pos_rodape != -1 and pos_hero != -1
+        assert pos_rodape < pos_hero, "O rodapé deve aparecer antes do hero quando reordenado"
+        # Restaura template após o teste
+        client.post("/api/template/reset")
+
+    def test_preview_contem_unsubscribe_e_empresa(self, client):
+        client.post("/api/template/reset")
+        r = client.get("/api/preview?nome=Mariana&empresa=Colégio%20Avançar")
+        assert r.status_code == 200
+        assert "Mariana" in r.text
+        assert "/api/unsubscribe" in r.text
+
 
