@@ -29,6 +29,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from api import generate_unsubscribe_token
 from email_sender import compile_mjml, render_template, send_email
 from sheets_client import get_recipients, get_sent_emails, mark_as_sent
 
@@ -89,6 +90,7 @@ def load_config() -> dict:
         "send_interval":        float(os.getenv("SEND_INTERVAL_SECONDS", "1")),
         "dry_run":              os.getenv("DRY_RUN", "False").lower() in ("true", "1", "yes"),
         "template_path":        str(Path(__file__).parent / "templates" / "email_template.mjml"),
+        "app_base_url":         os.getenv("APP_BASE_URL", "http://localhost:8000").rstrip("/"),
     }
 
     if config["dry_run"]:
@@ -148,15 +150,32 @@ def main():
         email  = recipient["email"]
         nome   = recipient["nome"]
         row    = recipient["row"]
+        status = str(recipient.get("status", "")).strip().lower()
 
-        # ── 4a. Verificação de duplicata ───────────────────────────────────
+        # ── 4a. Verificação de descadastro (Opt-out) ──────────────────────
+        if status in ("descadastrado", "optout", "opt-out"):
+            logger.info(f"[IGNORADO] {email} — destinatário descadastrado (opt-out).")
+            stats["ignorados"] += 1
+            continue
+
+        # ── 4b. Verificação de duplicata ───────────────────────────────────
         if email.lower() in already_sent:
             logger.info(f"[IGNORADO] {email} — e-mail já enviado anteriormente.")
             stats["ignorados"] += 1
             continue
 
-        # ── 4b. Injeção de variáveis no template ──────────────────────────
-        html_body = render_template(html_template, {"nome": nome})
+        # ── 4c. Injeção de variáveis no template com URL de descadastro ────
+        unsub_token = generate_unsubscribe_token(email)
+        unsub_url = f"{config['app_base_url']}/api/unsubscribe?email={email}&token={unsub_token}"
+        html_body = render_template(
+            html_template,
+            {
+                "nome": nome,
+                "empresa": recipient.get("empresa", ""),
+                "email_empresa": recipient.get("email_empresa", ""),
+                "unsubscribe_url": unsub_url,
+            },
+        )
 
         # ── 4c. Envio via Resend API ───────────────────────────────────────
         try:
