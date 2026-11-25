@@ -187,13 +187,13 @@ def build_unsubscribe_url(to_email: str, token: str = "") -> str:
     cloud_url = os.getenv("UNSUBSCRIBE_URL") or os.getenv("GOOGLE_APPS_SCRIPT_URL") or ""
     if cloud_url.strip().startswith("http"):
         sep = "&" if "?" in cloud_url else "?"
-        token_part = f"&token={token}" if token else ""
-        return f"{cloud_url.strip()}{sep}email={clean_email}{token_part}"
+        token_part = f"&token={quote(token)}" if token else ""
+        return f"{cloud_url.strip()}{sep}email={quote(clean_email)}{token_part}"
 
     base_url = os.getenv("APP_BASE_URL", "").strip()
     if base_url and not any(h in base_url.lower() for h in ("localhost", "127.0.0.1")):
-        token_part = f"&token={token}" if token else ""
-        return f"{base_url}/api/unsubscribe?email={clean_email}{token_part}"
+        token_part = f"&token={quote(token)}" if token else ""
+        return f"{base_url}/api/unsubscribe?email={quote(clean_email)}{token_part}"
 
     # Padrão universal autônomo (não requer servidor nem aplicação local rodando)
     sub = "Descadastrar da lista Politize"

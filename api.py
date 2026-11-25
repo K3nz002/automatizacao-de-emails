@@ -24,7 +24,7 @@ import os
 import re
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -78,7 +78,8 @@ def get_config():
         "resend_api_key":       os.getenv("RESEND_API_KEY", ""),
         "from_email":           os.getenv("FROM_EMAIL", "Politize <noreply@politize.com.br>"),
         "spreadsheet_id":       clean_sheet_id,
-        "sheet_name":           os.getenv("SHEET_NAME", "Destinatários"),
+        # Nome fixo da aba de destinatários (não é mais configurável pelo .env)
+        "sheet_name":           "Destinatários",
         "credentials_path":     os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json"),
         "email_subject":        os.getenv("EMAIL_SUBJECT", "Conheça o Politize — Educação Política para sua Escola"),
         "send_interval":        float(os.getenv("SEND_INTERVAL_SECONDS", "1") or "1"),
@@ -136,26 +137,87 @@ def verify_unsubscribe_token(email: str, token: str) -> bool:
     return hmac.compare_digest(expected, token.strip())
 
 
-def compute_message_hash(subject: str, cfg: Optional[dict] = None) -> str:
+def compute_message_hash(cfg: Optional[dict] = None) -> str:
     """
-    Gera um hash representativo do conteúdo da mensagem (assunto, textos, blocos).
-    Permite identificar com precisão quando o conteúdo do e-mail mudou para viabilizar reenvios.
+    Gera o código da versão da mensagem a partir do HTML do e-mail que de fato é enviado
+    (antes de preencher nome/empresa de cada destinatário).
+    Qualquer mudança no conteúdo do e-mail gera um código diferente, o que libera o reenvio.
     """
     if cfg is None:
         cfg = get_message_config()
-    raw_parts = [
-        subject.strip(),
-        str(cfg.get("main_message", "")),
-        str(cfg.get("hero_subtitle", "")),
-        str(cfg.get("hero_title", "")),
-        str(cfg.get("cta_title", "")),
-    ]
-    if cfg.get("blocks"):
-        raw_parts.append(json.dumps(cfg["blocks"], sort_keys=True))
-    elif cfg.get("custom_html"):
-        raw_parts.append(str(cfg["custom_html"]))
-    combined = "||".join(raw_parts).encode("utf-8")
-    return hashlib.sha256(combined).hexdigest()[:16]
+    html = build_template_from_config(cfg)
+    return hashlib.sha256(html.encode("utf-8")).hexdigest()[:16]
+
+
+# ---------------------------------------------------------------------------
+# Regras de reenvio (controle pela aba 'Enviados')
+# ---------------------------------------------------------------------------
+RESEND_MIN_DAYS = 30  # "1 mês" recomendado entre um e-mail e outro
+MSG_AVISO_1_MES = "Não passou o tempo recomendado de 1 mês de um email para outro, deseja enviar mesmo assim?"
+_UNSUB_STATUSES = ("descadastrado", "optout", "opt-out")
+
+
+def _parse_dt(value: str) -> Optional[datetime]:
+    value = str(value or "").strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def summarize_sent_history(history: list[dict], current_hash: str) -> dict[str, dict]:
+    """
+    Agrupa o histórico da aba 'Enviados' por e-mail:
+      - ultimo_envio: data do envio mais recente (de qualquer versão da mensagem)
+      - versao_atual: True se já recebeu a versão atual da mensagem
+    Linhas com status diferente de 'Enviado' (ex.: simulações) são ignoradas.
+    """
+    summary: dict[str, dict] = {}
+    for h in history:
+        if str(h.get("status", "Enviado")).strip().lower() != "enviado":
+            continue
+        email = str(h.get("email", "")).strip().lower()
+        if not email:
+            continue
+        item = summary.setdefault(email, {"ultimo_envio": None, "ultimo_envio_txt": "", "versao_atual": False})
+        dt = _parse_dt(h.get("data_envio", ""))
+        if dt and (item["ultimo_envio"] is None or dt > item["ultimo_envio"]):
+            item["ultimo_envio"] = dt
+            item["ultimo_envio_txt"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+        if current_hash and str(h.get("hash_mensagem", "")).strip() == current_hash:
+            item["versao_atual"] = True
+    return summary
+
+
+def is_recent(last_sent: Optional[datetime], now: Optional[datetime] = None) -> bool:
+    """True se o último envio aconteceu há menos de 1 mês (30 dias)."""
+    if last_sent is None:
+        return False
+    now = now or datetime.now()
+    return (now - last_sent).days < RESEND_MIN_DAYS
+
+
+def enrich_recipient(r: dict, summary: dict[str, dict]) -> dict:
+    """
+    Calcula o status de exibição de um destinatário:
+      - 'Descadastrado' se pediu opt-out (única informação de status guardada em 'Destinatários');
+      - 'Enviado' se já recebeu a versão atual da mensagem;
+      - '' (Pendente) caso contrário — inclusive quem recebeu uma versão anterior (mensagem_nova=True).
+    """
+    s = summary.get(str(r.get("email", "")).strip().lower())
+    raw_status = str(r.get("status", "")).strip()
+    unsub = raw_status.lower() in _UNSUB_STATUSES
+    last = s["ultimo_envio"] if s else None
+    sent_current = bool(s and s["versao_atual"])
+    return {
+        **r,
+        "status": "Descadastrado" if unsub else ("Enviado" if sent_current else ""),
+        "data_envio": s["ultimo_envio_txt"] if s else "",
+        "recente": is_recent(last),
+        "mensagem_nova": bool(s) and not sent_current and not unsub,
+    }
 
 # ---------------------------------------------------------------------------
 # Configuração Personalizada do Modelo de E-mail (Display & Conteúdo)
@@ -529,8 +591,8 @@ def load_template_html() -> str:
 # Dados mock de demonstração para quando o Google Sheets não estiver configurado
 # ---------------------------------------------------------------------------
 MOCK_RECIPIENTS = [
-    {"row": 2, "nome": "Ana Luiza Barbosa", "email": "ana.barbosa@escola-darcy.example.br", "empresa": "Escola Darcy Ribeiro", "email_empresa": "contato@escola-darcy.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:22"},
-    {"row": 3, "nome": "Bruno Ribeiro", "email": "bruno.ribeiro@lourenco-filho.example.br", "empresa": "Colégio Lourenço Filho", "email_empresa": "direcao@lourenco-filho.example.br", "status": "Enviado", "data_envio": "2026-11-10 14:15:24"},
+    {"row": 2, "nome": "Ana Luiza Barbosa", "email": "ana.barbosa@escola-darcy.example.br", "empresa": "Escola Darcy Ribeiro", "email_empresa": "contato@escola-darcy.example.br", "status": "", "data_envio": ""},
+    {"row": 3, "nome": "Bruno Ribeiro", "email": "bruno.ribeiro@lourenco-filho.example.br", "empresa": "Colégio Lourenço Filho", "email_empresa": "direcao@lourenco-filho.example.br", "status": "", "data_envio": ""},
     {"row": 4, "nome": "Carla Nogueira", "email": "carla.nogueira@paulo-freire.example.br", "empresa": "Instituto Paulo Freire", "email_empresa": "secretaria@paulo-freire.example.br", "status": "", "data_envio": ""},
     {"row": 5, "nome": "Daniel Teixeira", "email": "daniel.teixeira@anisio-teixeira.example.br", "empresa": "Escola Anísio Teixeira", "email_empresa": "pedagogico@anisio-teixeira.example.br", "status": "", "data_envio": ""},
     {"row": 6, "nome": "Elisa Duarte", "email": "elisa.duarte@cecilia-meireles.example.br", "empresa": "Colégio Cecília Meireles", "email_empresa": "adm@cecilia-meireles.example.br", "status": "", "data_envio": ""},
@@ -542,6 +604,22 @@ MOCK_RECIPIENTS = [
     {"row": 12, "nome": "Karina Vasconcelos", "email": "karina.vasconcelos@drummond.example.br", "empresa": "Colégio Carlos Drummond", "email_empresa": "contato@drummond.example.br", "status": "", "data_envio": ""},
     {"row": 13, "nome": "Lucas Junqueira", "email": "lucas.junqueira@clarice-lispector.example.br", "empresa": "Liceu Clarice Lispector", "email_empresa": "diretoria@clarice-lispector.example.br", "status": "", "data_envio": ""},
 ]
+
+# Histórico de demonstração da aba 'Enviados' (datas relativas a hoje):
+#   - Ana: recebeu a versão atual há 15 dias          → "Enviado"
+#   - Bruno: recebeu uma versão antiga há 10 dias     → "Pendente" (mensagem nova) + aviso de 1 mês
+#   - Carla: recebeu uma versão antiga há 60 dias     → "Pendente" (mensagem nova), sem aviso
+def _demo_sent_history() -> list[dict]:
+    now = datetime.now()
+    fmt = "%Y-%m-%d %H:%M:%S"
+    current = compute_message_hash()
+    return [
+        {"nome": "Ana Luiza Barbosa", "email": "ana.barbosa@escola-darcy.example.br", "data_envio": (now - timedelta(days=15)).strftime(fmt), "hash_mensagem": current, "status": "Enviado"},
+        {"nome": "Bruno Ribeiro", "email": "bruno.ribeiro@lourenco-filho.example.br", "data_envio": (now - timedelta(days=10)).strftime(fmt), "hash_mensagem": "versao_antiga", "status": "Enviado"},
+        {"nome": "Carla Nogueira", "email": "carla.nogueira@paulo-freire.example.br", "data_envio": (now - timedelta(days=60)).strftime(fmt), "hash_mensagem": "versao_antiga", "status": "Enviado"},
+    ]
+
+MOCK_SENT_HISTORY: list[dict] = _demo_sent_history()
 
 
 # ---------------------------------------------------------------------------
@@ -609,6 +687,11 @@ class SendRequest(BaseModel):
             raise ValueError("O assunto não pode ser composto apenas por espaços.")
         return v_stripped
 
+    force: bool = Field(
+        False,
+        description="Confirma o envio mesmo sem ter passado 1 mês desde o último e-mail para este destinatário",
+    )
+
 
 class AddRecipientRequest(BaseModel):
     nome: str = Field(..., min_length=2, max_length=150, description="Nome do destinatário")
@@ -624,13 +707,17 @@ class RecipientItem(BaseModel):
     empresa: Optional[str] = ""
     email_empresa: Optional[str] = ""
     status: str
-    data_envio: str
+    data_envio: str  # data do último envio registrado na aba 'Enviados'
+    recente: bool = False  # último envio há menos de 1 mês
+    mensagem_nova: bool = False  # já recebeu uma versão anterior, mas não a atual
 
 
 class RecipientsResponse(BaseModel):
     total: int
     source: str
     warning: Optional[str] = None
+    missing_tabs: list[str] = []
+    structure_message: Optional[str] = None
     recipients: list[RecipientItem]
 
 
@@ -732,43 +819,50 @@ async def list_recipients():
     para que o usuário possa usar a aplicação imediatamente.
     """
     creds_file = BASE_DIR / CONFIG["credentials_path"]
-    
-    if not creds_file.exists():
-        logger.info("Arquivo credentials.json não encontrado. Operando com dados de demonstração.")
+
+    def demo_response(warning: str) -> RecipientsResponse:
+        summary = summarize_sent_history(MOCK_SENT_HISTORY, compute_message_hash())
         return RecipientsResponse(
             total=len(MOCK_RECIPIENTS),
             source="demo",
-            warning="Arquivo credentials.json não encontrado. Exibindo dados de exemplo para demonstração.",
-            recipients=[RecipientItem(**r) for r in MOCK_RECIPIENTS],
+            warning=warning,
+            recipients=[RecipientItem(**enrich_recipient(r, summary)) for r in MOCK_RECIPIENTS],
         )
 
+    if not creds_file.exists():
+        logger.info("Arquivo credentials.json não encontrado. Operando com dados de demonstração.")
+        return demo_response("Arquivo credentials.json não encontrado. Exibindo dados de exemplo para demonstração.")
+
+    # 1. Logo ao conectar: exige as abas fixas 'Destinatários' e 'Enviados'
     try:
-        raw = get_recipients(
-            str(creds_file),
-            CONFIG["spreadsheet_id"],
-            CONFIG["sheet_name"],
-        )
-        items = [RecipientItem(**r) for r in raw]
-        return RecipientsResponse(
-            total=len(items),
-            source="sheets",
-            recipients=items,
-        )
+        structure = validate_spreadsheet_structure(str(creds_file), CONFIG["spreadsheet_id"])
     except FileNotFoundError:
-        return RecipientsResponse(
-            total=len(MOCK_RECIPIENTS),
-            source="demo",
-            warning="Arquivo de credenciais não encontrado. Usando dados de exemplo.",
-            recipients=[RecipientItem(**r) for r in MOCK_RECIPIENTS],
-        )
+        return demo_response("Arquivo de credenciais não encontrado. Usando dados de exemplo.")
     except Exception as e:
         logger.warning(f"Erro ao acessar Google Sheets: {e}. Usando dados de demonstração.")
+        return demo_response("Falha ao conectar com o Google Sheets. Modo demonstração ativo.")
+
+    if not structure["valid"]:
+        logger.warning(f"Planilha sem as abas obrigatórias: {structure['missing']}")
         return RecipientsResponse(
-            total=len(MOCK_RECIPIENTS),
-            source="demo",
-            warning="Falha ao conectar com o Google Sheets. Modo demonstração ativo.",
-            recipients=[RecipientItem(**r) for r in MOCK_RECIPIENTS],
+            total=0,
+            source="sheets",
+            missing_tabs=structure["missing"],
+            structure_message=MSG_ESTRUTURA_INVALIDA,
+            recipients=[],
         )
+
+    # 2. Lista de e-mails ('Destinatários') + controle de envios ('Enviados')
+    try:
+        raw = get_recipients(str(creds_file), CONFIG["spreadsheet_id"], TAB_DESTINATARIOS)
+        history = get_sent_history(str(creds_file), CONFIG["spreadsheet_id"], TAB_ENVIADOS)
+    except Exception as e:
+        logger.warning(f"Erro ao ler o Google Sheets: {e}. Usando dados de demonstração.")
+        return demo_response("Falha ao conectar com o Google Sheets. Modo demonstração ativo.")
+
+    summary = summarize_sent_history(history, compute_message_hash())
+    items = [RecipientItem(**enrich_recipient(r, summary)) for r in raw]
+    return RecipientsResponse(total=len(items), source="sheets", recipients=items)
 
 
 @app.post("/api/recipients", tags=["Destinatários"])
@@ -843,14 +937,22 @@ async def send_single(payload: SendRequest):
     creds_file = BASE_DIR / CONFIG["credentials_path"]
     is_live_sheet = creds_file.exists() and bool(CONFIG["spreadsheet_id"])
 
-    # 1. Carrega lista para validar o destinatário da linha solicitada
+    # 1. Carrega lista (aba 'Destinatários') e histórico (aba 'Enviados')
     if is_live_sheet:
         try:
-            recipients = get_recipients(str(creds_file), CONFIG["spreadsheet_id"], CONFIG["sheet_name"])
+            structure = validate_spreadsheet_structure(str(creds_file), CONFIG["spreadsheet_id"])
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Erro ao verificar planilha: {e}")
+        if not structure["valid"]:
+            raise HTTPException(status_code=409, detail=MSG_ESTRUTURA_INVALIDA)
+        try:
+            recipients = get_recipients(str(creds_file), CONFIG["spreadsheet_id"], TAB_DESTINATARIOS)
+            history = get_sent_history(str(creds_file), CONFIG["spreadsheet_id"], TAB_ENVIADOS)
         except Exception as e:
             raise HTTPException(status_code=503, detail=f"Erro ao verificar planilha: {e}")
     else:
         recipients = MOCK_RECIPIENTS
+        history = MOCK_SENT_HISTORY
 
     # Busca destinatário
     target = next((r for r in recipients if r["row"] == payload.row), None)
@@ -875,10 +977,25 @@ async def send_single(payload: SendRequest):
             detail=f"O destinatário '{payload.email}' solicitou descadastro e não pode receber novos envios.",
         )
 
-    # 2. Renderiza o template oficial com URL de descadastro e variáveis
-    unsub_token = generate_unsubscribe_token(target["email"])
-    unsub_url = f"{CONFIG['app_base_url']}/api/unsubscribe?email={target['email']}&token={unsub_token}"
+    # Regras de reenvio (somente para envio real; a simulação não envia nem grava nada)
     html_template = load_template_html()
+    msg_hash = hashlib.sha256(html_template.encode("utf-8")).hexdigest()[:16]
+    hist = summarize_sent_history(history, msg_hash).get(target["email"].strip().lower())
+    if not payload.dry_run and hist:
+        # a) Mesma mensagem já enviada: só é possível reenviar quando a mensagem mudar
+        if hist["versao_atual"]:
+            raise HTTPException(
+                status_code=409,
+                detail=f"'{payload.email}' já recebeu esta versão da mensagem. Altere a mensagem para enviar novamente.",
+            )
+        # b) Menos de 1 mês desde o último e-mail: exige confirmação explícita
+        if is_recent(hist["ultimo_envio"]) and not payload.force:
+            raise HTTPException(status_code=409, detail=MSG_AVISO_1_MES)
+
+    # 2. Renderiza o template oficial com URL de descadastro e variáveis.
+    #    O link aponta para o Google Apps Script (UNSUBSCRIBE_URL), que funciona mesmo com a aplicação desligada.
+    unsub_token = generate_unsubscribe_token(target["email"])
+    unsub_url = build_unsubscribe_url(target["email"], unsub_token)
     rendered_html = render_template(
         html_template,
         {
@@ -925,12 +1042,36 @@ async def send_single(payload: SendRequest):
         logger.error(f"Erro na API do Resend ao enviar para {payload.email}: {e}")
         raise HTTPException(status_code=502, detail=f"Erro no provedor de e-mail (Resend): {e}")
 
-    # Atualiza a planilha no envio real bem-sucedido
+    # Registra o envio real na aba 'Enviados' (a aba 'Destinatários' não é alterada)
+    sent_row = {
+        "nome": target.get("nome", ""),
+        "email": target["email"],
+        "empresa": target.get("empresa", ""),
+        "email_empresa": target.get("email_empresa", ""),
+        "assunto": payload.subject,
+        "data_envio": timestamp,
+        "hash_mensagem": msg_hash,
+        "status": "Enviado",
+    }
     if is_live_sheet:
         try:
-            mark_as_sent(str(creds_file), CONFIG["spreadsheet_id"], CONFIG["sheet_name"], row=payload.row, timestamp=timestamp)
+            record_sent_email(
+                str(creds_file),
+                CONFIG["spreadsheet_id"],
+                nome=sent_row["nome"],
+                email=sent_row["email"],
+                empresa=sent_row["empresa"],
+                email_empresa=sent_row["email_empresa"],
+                assunto=sent_row["assunto"],
+                timestamp=timestamp,
+                hash_mensagem=msg_hash,
+                status="Enviado",
+                sheet_name=TAB_ENVIADOS,
+            )
         except Exception as e:
-            logger.error(f"E-mail enviado mas falhou atualização no Google Sheets: {e}")
+            logger.error(f"E-mail enviado mas falhou o registro na aba '{TAB_ENVIADOS}': {e}")
+    else:
+        MOCK_SENT_HISTORY.append(sent_row)
 
     return SendResponse(
         id=email_id or "sent",

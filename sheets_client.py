@@ -91,56 +91,96 @@ def _ensure_headers(worksheet, default_headers: Optional[list[str]] = None) -> l
     return values[0]
 
 
+_DATA_ENVIO_KEYS = ("datadeenvio", "dataenvio", "datadoenvio")
+
+
+def _migrate_data_envio_column(ws_dest, ws_env) -> int:
+    """
+    Retira a coluna 'Data de Envio' da aba 'Destinatários' (que deve guardar só a lista de e-mails).
+
+    Antes de apagar a coluna, as datas preenchidas são copiadas para a aba 'Enviados',
+    para não perder o histórico usado no aviso de 1 mês. Como não se sabe qual versão da
+    mensagem foi enviada nessas datas, o 'Hash Mensagem' fica vazio (conta como versão antiga).
+    Retorna quantas datas foram migradas.
+    """
+    values = ws_dest.get_all_values()
+    if not values:
+        return 0
+    header = values[0]
+    data_col = next((i for i, h in enumerate(header) if _normalize_key(h) in _DATA_ENVIO_KEYS), None)
+    if data_col is None:
+        return 0
+
+    def col(name_keys):
+        return next((i for i, h in enumerate(header) if _normalize_key(h) in name_keys), None)
+
+    c_nome = col(("nome", "name", "destinatario", "contato"))
+    c_email = col(("email", "emaildestinatario", "mail", "correio"))
+    c_emp = col(("nomedaempresa", "empresa", "escola", "instituicao", "company"))
+    c_emp_email = col(("emaildaempresa", "emailempresa", "companyemail", "emailcorporativo", "emailinstitucional"))
+
+    def cell(row, idx):
+        return row[idx].strip() if idx is not None and idx < len(row) else ""
+
+    _ensure_headers(ws_env, DEFAULT_ENVIADOS_HEADERS)
+    to_copy = []
+    for row in values[1:]:
+        data = cell(row, data_col)
+        email = cell(row, c_email)
+        if not data or not email:
+            continue
+        to_copy.append([
+            cell(row, c_nome), email, cell(row, c_emp), cell(row, c_emp_email),
+            "", data, "", "Enviado",
+        ])
+    if to_copy:
+        ws_env.append_rows(to_copy)
+
+    ws_dest.delete_columns(data_col + 1)
+    logger.info(
+        f"Coluna '{header[data_col]}' removida da aba '{TAB_DESTINATARIOS}'. "
+        f"{len(to_copy)} data(s) de envio copiada(s) para a aba '{TAB_ENVIADOS}'."
+    )
+    return len(to_copy)
+
+
 def validate_spreadsheet_structure(credentials_path: str, spreadsheet_id: str) -> dict:
     """
-    Verifica se a planilha contém estritamente as abas fixas 'Destinatários' e 'Enviados'.
-    Caso alguma não exista, retorna indicador e mensagem obrigatória para o usuário.
+    Verifica se a planilha contém as abas fixas 'Destinatários' e 'Enviados'.
+    - Se faltar alguma, retorna 'valid': False com a mensagem obrigatória para o usuário.
+    - Se estiverem presentes, cria os cabeçalhos em abas vazias e retira a coluna
+      'Data de Envio' da aba 'Destinatários' (o controle fica na aba 'Enviados').
+    Falhas de conexão/credenciais NÃO são tratadas como abas faltando: a exceção é propagada.
     """
     clean_id = _extract_spreadsheet_id(spreadsheet_id)
-    try:
-        client = _get_spreadsheet_client(credentials_path)
-        spreadsheet = client.open_by_key(clean_id)
-        worksheets = [ws.title for ws in spreadsheet.worksheets()]
+    client = _get_spreadsheet_client(credentials_path)
+    spreadsheet = client.open_by_key(clean_id)
+    worksheets = [ws.title for ws in spreadsheet.worksheets()]
+    sheet_url = f"https://docs.google.com/spreadsheets/d/{clean_id}/edit"
 
-        missing = []
-        if TAB_DESTINATARIOS not in worksheets:
-            missing.append(TAB_DESTINATARIOS)
-        if TAB_ENVIADOS not in worksheets:
-            missing.append(TAB_ENVIADOS)
-
-        if missing:
-            return {
-                "valid": False,
-                "missing": missing,
-                "error_message": MSG_ESTRUTURA_INVALIDA,
-                "worksheets": worksheets,
-                "spreadsheet_url": f"https://docs.google.com/spreadsheets/d/{clean_id}/edit",
-            }
-
-        # Inicializa cabeçalhos se abas estiverem vazias
-        ws_dest = spreadsheet.worksheet(TAB_DESTINATARIOS)
-        _ensure_headers(ws_dest, DEFAULT_DESTINATARIOS_HEADERS)
-
-        ws_env = spreadsheet.worksheet(TAB_ENVIADOS)
-        _ensure_headers(ws_env, DEFAULT_ENVIADOS_HEADERS)
-
-        return {
-            "valid": True,
-            "missing": [],
-            "error_message": "",
-            "worksheets": worksheets,
-            "spreadsheet_url": f"https://docs.google.com/spreadsheets/d/{clean_id}/edit",
-        }
-    except Exception as e:
-        logger.error(f"Erro ao validar estrutura da planilha: {e}")
+    missing = [t for t in (TAB_DESTINATARIOS, TAB_ENVIADOS) if t not in worksheets]
+    if missing:
         return {
             "valid": False,
-            "missing": [TAB_DESTINATARIOS, TAB_ENVIADOS],
+            "missing": missing,
             "error_message": MSG_ESTRUTURA_INVALIDA,
-            "details": str(e),
-            "worksheets": [],
-            "spreadsheet_url": f"https://docs.google.com/spreadsheets/d/{clean_id}/edit",
+            "worksheets": worksheets,
+            "spreadsheet_url": sheet_url,
         }
+
+    ws_dest = spreadsheet.worksheet(TAB_DESTINATARIOS)
+    _ensure_headers(ws_dest, DEFAULT_DESTINATARIOS_HEADERS)
+    ws_env = spreadsheet.worksheet(TAB_ENVIADOS)
+    _ensure_headers(ws_env, DEFAULT_ENVIADOS_HEADERS)
+    _migrate_data_envio_column(ws_dest, ws_env)
+
+    return {
+        "valid": True,
+        "missing": [],
+        "error_message": "",
+        "worksheets": worksheets,
+        "spreadsheet_url": sheet_url,
+    }
 
 
 def _normalize_key(key: str) -> str:
@@ -182,8 +222,6 @@ def _get_col_indices(worksheet, default_headers: Optional[list[str]] = None) -> 
             indices["email_empresa"] = idx
         elif norm in ("status", "situacao", "estado"):
             indices["status"] = idx
-        elif norm in ("datadeenvio", "dataenvio", "data", "sentat", "datahora"):
-            indices["data_envio"] = idx
     return indices
 
 

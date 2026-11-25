@@ -144,8 +144,8 @@
     width: var(--cw); height: var(--ch); flex: none;
     border-radius: 4px; border: 1.5px solid var(--edge); background-color: var(--fill);
     background-image:
-      linear-gradient(to bottom right, transparent calc(50% - .75px), var(--flap) calc(50% - .75px), var(--flap) calc(50% + .75px), transparent calc(50% + .75px)),
-      linear-gradient(to bottom left,  transparent calc(50% - .75px), var(--flap) calc(50% - .75px), var(--flap) calc(50% + .75px), transparent calc(50% + .75px));
+      linear-gradient(to bottom left,  transparent calc(50% - .75px), var(--flap) calc(50% - .75px), var(--flap) calc(50% + .75px), transparent calc(50% + .75px)),
+      linear-gradient(to bottom right, transparent calc(50% - .75px), var(--flap) calc(50% - .75px), var(--flap) calc(50% + .75px), transparent calc(50% + .75px));
     background-size: 50% 58%, 50% 58%;
     background-position: left top, right top;
     background-repeat: no-repeat;
@@ -278,6 +278,11 @@
   .st-erro     { background: var(--red-bg); color: var(--red); }
   .st-enviando { background: #FFE2D6; color: #8A2E0B; }
   .simtag { margin-left: 6px; font-size: 12px; color: var(--green); font-weight: 600; }
+  .newtag { margin-left: 6px; font-size: 12px; color: var(--orange); font-weight: 600; }
+  .recent-list { list-style: none; margin: 0 0 20px; padding: 0; max-height: 220px; overflow: auto; border: 1px solid #E2E6EF; border-radius: 8px; }
+  .recent-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: 13.5px; border-bottom: 1px solid #EEF1F6; }
+  .recent-list li:last-child { border-bottom: 0; }
+  .recent-list .dt { color: var(--muted); white-space: nowrap; }
   .errmsg { display: block; color: var(--red); font-size: 12px; margin-top: 2px; max-width: 30ch; }
   .empty-row td { text-align: center; padding: 48px 20px; color: var(--muted); }
   .empty-row p { margin: 0 0 10px; font-size: 15px; }
@@ -902,6 +907,17 @@
   </div>
 </dialog>
 
+<!-- Modal de Aviso: menos de 1 mês desde o último e-mail -->
+<dialog id="recentModal" aria-labelledby="recentTitle">
+  <h2 id="recentTitle">Não passou o tempo recomendado de 1 mês de um email para outro, deseja enviar mesmo assim?</h2>
+  <p id="recentBody"></p>
+  <ul class="recent-list" id="recentList"></ul>
+  <div class="dlg-actions">
+    <button class="btn" id="recentNo" type="button">Não enviar</button>
+    <button class="btn real" id="recentYes" type="button">Sim, enviar mesmo assim</button>
+  </div>
+</dialog>
+
 <!-- Modal de Diagnóstico do Sistema -->
 <dialog id="diagModal" aria-labelledby="diagTitle">
   <h2 id="diagTitle">Diagnóstico do Sistema</h2>
@@ -970,7 +986,9 @@ const api = {
   async listRecipients() {
     const res = await this.call("/api/recipients");
     if (res && Array.isArray(res.recipients)) {
-      if (res.warning) showBanner(res.warning);
+      if (res.missing_tabs && res.missing_tabs.length) showMissingTabs(res.structure_message);
+      else if (res.warning) showBanner(res.warning);
+      else el.bannerAlert.hidden = true;
       return res.recipients;
     }
     if (Array.isArray(res)) return res;
@@ -1004,6 +1022,7 @@ const api = {
         email: r.email,
         dry_run: Boolean(o.dryRun),
         subject: o.subject,
+        force: Boolean(o.force),
       })
     });
   }
@@ -1090,7 +1109,8 @@ const el = {};
  "templateForm", "tplFromName", "tplFromEmail", "tplSubject", "tplHeroSubtitle", "tplMainMessage",
  "tplButtonText", "tplButtonUrl", "tplCtaTitle", "tplCtaBtnText", "saveTplBtn", "resetTplBtn",
  "editorLiveFrame", "livePreviewRefreshBtn",
- "previewWho", "previewFrame", "refreshPreviewBtn", "confirm", "confirmTitle", "confirmBody", "confirmNo", "confirmYes"].forEach((id) => (el[id] = $(id)));
+ "previewWho", "previewFrame", "refreshPreviewBtn", "confirm", "confirmTitle", "confirmBody", "confirmNo", "confirmYes",
+ "recentModal", "recentBody", "recentList", "recentNo", "recentYes"].forEach((id) => (el[id] = $(id)));
 
 const keyOf = (r) => {
   const s = String(r.status || "").toLowerCase();
@@ -1126,6 +1146,12 @@ const counts = () => {
 function showBanner(msg) {
   el.bannerText.textContent = msg;
   el.bannerAlert.hidden = false;
+}
+
+/* Planilha sem as abas fixas "Destinatários" e "Enviados" */
+function showMissingTabs(msg) {
+  showBanner(msg || 'Não existem as abas "Destinatários" e "Enviados" na planilha para o funcionamento do programa adicione pelo botão "Planilha Google Sheets".');
+  if (el.openSheetTopBtn.getAttribute("href")) el.openSheetTopBtn.style.display = "inline-flex";
 }
 
 /* ---------- Sistema de Logs ---------- */
@@ -1236,7 +1262,7 @@ function renderTable() {
       <td class="nm">${esc(r.nome)}</td>
       <td class="em">${esc(r.email)}</td>
       <td class="emp">${esc(r.empresa || "—")}${r.email_empresa ? `<small>${esc(r.email_empresa)}</small>` : ""}</td>
-      <td><span class="st st-${k}">${labelOf(r)}</span>${r.sim ? '<span class="simtag">simulado</span>' : ""}${r.erro && k === "erro" ? `<span class="errmsg">${esc(r.erro)}</span>` : ""}</td>
+      <td><span class="st st-${k}">${labelOf(r)}</span>${r.sim ? '<span class="simtag">simulado</span>' : ""}${r.mensagem_nova && k === "pendente" ? '<span class="newtag" title="Já recebeu uma versão anterior da mensagem">mensagem nova</span>' : ""}${r.erro && k === "erro" ? `<span class="errmsg">${esc(r.erro)}</span>` : ""}</td>
       <td class="dt">${r.data_envio ? fmtDate(r.data_envio) : "—"}</td>
       <td class="ac">${action}</td>
     </tr>`;
@@ -1278,12 +1304,12 @@ function wait(ms) {
   });
 }
 
-async function processOne(r, { dryRun, subject }) {
+async function processOne(r, { dryRun, subject, forceRows }) {
   const prev = r.status;
   r.status = "enviando"; r.sim = false; r.erro = "";
   updateCell(r);
   try {
-    const res = await api.sendOne(r, { dryRun, subject });
+    const res = await api.sendOne(r, { dryRun, subject, force: forceRows.has(r.row) });
     if (dryRun) {
       r.status = prev; r.sim = true;
       log("info", `[SIMULAÇÃO] Sucesso para ${r.email}`);
@@ -1291,6 +1317,7 @@ async function processOne(r, { dryRun, subject }) {
     }
     r.status = "enviado";
     r.data_envio = (res && res.data_envio) || nowStamp();
+    r.recente = true; r.mensagem_nova = false;
     log("ok", `E-mail entregue para ${r.email}${res && res.id ? ` [ID: ${res.id}]` : ""}`);
     return "ok";
   } catch (e) {
@@ -1302,7 +1329,7 @@ async function processOne(r, { dryRun, subject }) {
   }
 }
 
-async function run(targets) {
+async function run(targets, forceRows = new Set()) {
   if (state.running || !targets.length) return;
   state.running = true; state.stop = false;
   state.recipients.forEach((r) => { if (r.sim) { r.sim = false; updateCell(r); } });
@@ -1321,7 +1348,7 @@ async function run(targets) {
   let ok = 0, err = 0, done = 0;
   for (const r of targets) {
     if (state.stop) break;
-    const res = await processOne(r, { dryRun, subject });
+    const res = await processOne(r, { dryRun, subject, forceRows });
     done++; res === "err" ? err++ : ok++;
     const pct = Math.round((done / targets.length) * 100);
     el.barFill.style.width = `${pct}%`;
@@ -1342,12 +1369,29 @@ async function run(targets) {
 
 function requestRun(targets) {
   if (state.running || !targets.length) return;
-  if (state.mode === "teste") return run(targets);
+  const recent = targets.filter((r) => r.recente);
+  if (!recent.length) return confirmAndRun(targets, new Set());
+
+  // Aviso de 1 mês: lista quem recebeu e-mail há menos de 30 dias
+  const n = recent.length;
+  el.recentBody.textContent = `${n} ${plural(n, "destinatário recebeu", "destinatários receberam")} um e-mail há menos de 1 mês:`;
+  el.recentList.innerHTML = recent.map((r) =>
+    `<li><span>${esc(r.nome || r.email)} &lt;${esc(r.email)}&gt;</span><span class="dt">${r.data_envio ? fmtDate(r.data_envio) : ""}</span></li>`
+  ).join("");
+  el.recentModal._targets = targets;
+  el.recentModal._recent = recent;
+  el.recentModal.showModal();
+}
+
+function confirmAndRun(targets, forceRows) {
+  if (!targets.length) { showToast("Nenhum e-mail foi enviado.", "warn"); return; }
+  if (state.mode === "teste") return run(targets, forceRows);
   const n = targets.length;
   el.confirmTitle.textContent = `Confirmar disparo real para ${n} ${plural(n, "e-mail", "e-mails")}?`;
-  el.confirmBody.textContent = "Os e-mails serão enviados via API oficial do Resend e as linhas correspondentes da planilha serão marcadas como Enviado com a data/hora atual.";
+  el.confirmBody.textContent = "Os e-mails serão enviados via API oficial do Resend e cada envio será registrado na aba Enviados da planilha com a data/hora atual.";
   el.confirmYes.textContent = `Sim, enviar ${n} ${plural(n, "e-mail", "e-mails")}`;
   el.confirm._targets = targets;
+  el.confirm._forceRows = forceRows;
   el.confirm.showModal();
 }
 
@@ -1945,6 +1989,7 @@ async function handleSaveLayout() {
     showToast("✓ Layout do e-mail salvo com sucesso!", "ok");
     renderBuilderPreview();
     renderPreview();
+    if (!state.running) load();
   } catch (e) {
     showToast("Erro ao salvar layout: " + e.message, "err");
   } finally {
@@ -2010,6 +2055,7 @@ async function handleSaveTemplate(e) {
     showToast("✓ Mensagem e Display do e-mail salvos com sucesso!", "ok");
     renderLiveEditorPreview();
     renderPreview();
+    if (!state.running) load();
   } catch (err) {
     showToast("Erro ao salvar: " + err.message, "err");
   } finally {
@@ -2026,6 +2072,7 @@ async function handleResetTemplate() {
     await loadTemplateSettings();
     showToast("Modelo restaurado para o padrão original!");
     renderPreview();
+    if (!state.running) load();
   } catch (err) {
     showToast("Erro ao restaurar: " + err.message, "err");
   } finally {
@@ -2133,6 +2180,8 @@ function normalize(list) {
     email_empresa: d.email_empresa || "",
     status: d.status || "pendente",
     data_envio: d.data_envio || "",
+    recente: Boolean(d.recente),
+    mensagem_nova: Boolean(d.mensagem_nova),
     sim: false,
     erro: "",
   }));
@@ -2165,7 +2214,20 @@ el.interval.addEventListener("input", renderPanel);
 el.runBtn.addEventListener("click", () => requestRun(pendingList()));
 el.stopBtn.addEventListener("click", () => { state.stop = true; el.stopBtn.textContent = "Interrompendo…"; if (state.wake) state.wake(); });
 el.confirmNo.addEventListener("click", () => el.confirm.close());
-el.confirmYes.addEventListener("click", () => { const t = el.confirm._targets; el.confirm.close(); run(t); });
+el.confirmYes.addEventListener("click", () => { const t = el.confirm._targets; el.confirm.close(); run(t, el.confirm._forceRows || new Set()); });
+el.recentYes.addEventListener("click", () => {
+  const { _targets: t, _recent: recent } = el.recentModal;
+  el.recentModal.close();
+  confirmAndRun(t, new Set(recent.map((r) => r.row)));
+});
+el.recentNo.addEventListener("click", () => {
+  const { _targets: t, _recent: recent } = el.recentModal;
+  el.recentModal.close();
+  const skip = new Set(recent.map((r) => r.row));
+  const rest = t.filter((r) => !skip.has(r.row));
+  log("info", `${skip.size} ${plural(skip.size, "destinatário pulado", "destinatários pulados")} (menos de 1 mês desde o último e-mail).`);
+  confirmAndRun(rest, new Set());
+});
 el.refreshBtn.addEventListener("click", () => { showToast("Sincronizando com a planilha...", "warn"); load(); });
 el.diagBtn.addEventListener("click", openDiagModal);
 el.diagClose.addEventListener("click", () => el.diagModal.close());

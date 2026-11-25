@@ -130,7 +130,9 @@ function renderUnsubscribedPage(email) {
     '    <p>Você não receberá novos comunicados enviados através desta lista institucional.</p>' +
     '    <div class="email-box">' + safeEmail + '</div>' +
     '    <p style="font-size:13px; color:#8592A6;">Clicou por engano?</p>' +
-    '    <a href="?email=' + encodeURIComponent(email) + '&action=resubscribe" class="btn-resub">Reativar minha inscrição</a>' +
+    // O Apps Script exibe a página dentro de um iframe: o link precisa da URL completa do
+    // App da Web e de target="_top", senão o clique não abre a página de reativação.
+    '    <a href="' + ScriptApp.getService().getUrl() + '?email=' + encodeURIComponent(email) + '&action=resubscribe" target="_top" class="btn-resub">Reativar minha inscrição</a>' +
     '  </div>' +
     '</body>' +
     '</html>';
